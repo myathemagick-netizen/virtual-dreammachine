@@ -5,22 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dreamachine — After Brion Gysin</title>
 
-<!--
-  Three.js loaded in <head> with no defer/async so it is
-  guaranteed to be parsed and executed before ANY body script runs.
-  Two CDN sources for redundancy.
--->
-<script>
-// We will load Three.js synchronously via document.write so it
-// blocks parsing until it is ready — safest approach for Quest browser.
-</script>
-<script src="https://unpkg.com/three@0.165.0/build/three.min.js"></script>
-<script>
-// If unpkg failed, try jsdelivr
-if (typeof THREE === 'undefined') {
-  document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.min.js"><\/script>');
-}
-</script>
+<!-- Three.js loaded from the same repo — no CDN, no cross-origin issues -->
+<script src="three.min.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Lato:wght@300;400&display=swap" rel="stylesheet">
 <style>
@@ -55,9 +41,8 @@ html, body { width:100%; height:100%; background:#000; overflow:hidden; font-fam
   cursor:pointer; width:100%; max-width:440px; transition:opacity 0.2s; margin-top:4px;
 }
 .bigbtn:hover { opacity:0.85; }
-.bigbtn:disabled { opacity:0.35; cursor:default; }
 #msg { font-size:13px; color:#888; min-height:20px; letter-spacing:0.04em; }
-#debug { font-size:11px; color:#555; max-width:440px; word-break:break-all; min-height:14px; }
+#debug { font-size:11px; color:#555; max-width:440px; word-break:break-all; min-height:14px; margin-top:-10px; }
 .footnote { font-size:11px; color:#333; letter-spacing:0.06em; }
 </style>
 </head>
@@ -79,80 +64,60 @@ html, body { width:100%; height:100%; background:#000; overflow:hidden; font-fam
   </p>
   <p id="msg">Put on your headset and tap the button below.</p>
   <p id="debug"></p>
-  <button class="bigbtn" id="enterbtn" onclick="enterVR()">Enter the Dreamachine</button>
+  <button class="bigbtn" onclick="enterVR()">Enter the Dreamachine</button>
   <p class="footnote">Meta Quest 2 &amp; 3 · Meta Browser · Controls appear inside VR</p>
 </div>
 
 <script>
-// ── Diagnostics shown on screen ────────────────────────
 var dbg = document.getElementById('debug');
 var msg = document.getElementById('msg');
+function log(t){ console.log(t); dbg.textContent = t; }
 
-function log(txt) {
-  console.log(txt);
-  dbg.textContent = txt;
-}
-
-log('THREE: ' + (typeof THREE !== 'undefined' ? 'loaded v'+THREE.REVISION : 'NOT LOADED'));
-
-// ── Guard: if Three.js didn't load, tell the user ──────
-if (typeof THREE === 'undefined') {
-  msg.textContent = 'Error: Could not load 3D library. Check your internet connection.';
+if(typeof THREE === 'undefined'){
+  msg.textContent = 'Error: three.min.js not found. Make sure it is in the same folder as index.html in your repo.';
   msg.style.color = '#c84444';
-  document.getElementById('enterbtn').disabled = true;
-  // Stop here
+  log('THREE: NOT LOADED — is three.min.js in the repo?');
   throw new Error('THREE not loaded');
 }
+log('THREE r'+THREE.REVISION+' OK');
 
-// ── Build renderer immediately ─────────────────────────
-var renderer, scene, camera, clock;
+// ── Renderer ───────────────────────────────────────────
+var renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+renderer.domElement.style.cssText = 'position:fixed;inset:0;z-index:0;display:block;';
+document.body.appendChild(renderer.domElement);
+log('THREE r'+THREE.REVISION+' · renderer OK · xr: '+(renderer.xr?'OK':'MISSING'));
 
-try {
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true;
-  renderer.domElement.style.cssText = 'position:fixed;inset:0;z-index:0;display:block;';
-  document.body.appendChild(renderer.domElement);
-  log('THREE: loaded · renderer: OK · xr: ' + (renderer.xr ? 'OK' : 'MISSING'));
-} catch(e) {
-  msg.textContent = 'Renderer error: ' + e.message;
-  msg.style.color = '#c84444';
-  log('Renderer FAILED: ' + e.message);
-  throw e;
-}
-
-scene  = new THREE.Scene();
+// ── Scene ──────────────────────────────────────────────
+var scene  = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
-camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.01, 50);
+var camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.01, 50);
 camera.position.set(0, 1.6, 0);
-clock  = new THREE.Clock();
-
-var hz = 6, pat = 'slits', angle = 0;
+var clock  = new THREE.Clock();
+var hz=6, pat='slits', angle=0;
 var CX=0, CY=1.6, CZ=-1.4;
-var LCOLORS = { delta:0x4466ee, theta:0xffaa44, alpha:0x88ffaa, beta:0xff8866 };
+var LCOLORS={delta:0x4466ee,theta:0xffaa44,alpha:0x88ffaa,beta:0xff8866};
 function skey(){ return hz<4?'delta':hz<8?'theta':hz<13?'alpha':'beta'; }
 
-// ── Scene objects ──────────────────────────────────────
 scene.add(new THREE.AmbientLight(0x221508, 1.2));
-var fLight = new THREE.PointLight(0xffaa44, 15, 7);
+var fLight = new THREE.PointLight(0xffaa44,15,7);
 fLight.position.set(CX,CY,CZ);
 scene.add(fLight);
 
-var floor = new THREE.Mesh(new THREE.PlaneGeometry(14,14),
+var floor=new THREE.Mesh(new THREE.PlaneGeometry(14,14),
   new THREE.MeshStandardMaterial({color:0x090705,roughness:1}));
-floor.rotation.x = -Math.PI/2;
-scene.add(floor);
+floor.rotation.x=-Math.PI/2; scene.add(floor);
 
-var room = new THREE.Mesh(new THREE.BoxGeometry(10,5,10),
+var room=new THREE.Mesh(new THREE.BoxGeometry(10,5,10),
   new THREE.MeshStandardMaterial({color:0x060402,roughness:1,side:THREE.BackSide}));
-room.position.y = 2.5;
-scene.add(room);
+room.position.y=2.5; scene.add(room);
 
-var cyl, capT, capB, bulb, glowMesh;
-
+// ── Cylinder ───────────────────────────────────────────
+var cyl,capT,capB,bulb,glowMesh;
 function makeAlpha(){
-  var sz=1024, cv=document.createElement('canvas');
+  var sz=1024,cv=document.createElement('canvas');
   cv.width=cv.height=sz;
   var ctx=cv.getContext('2d');
   ctx.fillStyle='#000'; ctx.fillRect(0,0,sz,sz);
@@ -160,9 +125,9 @@ function makeAlpha(){
   var n=10;
   if(pat==='diamond'){
     for(var i=0;i<n;i++){
-      var ecx=(i/n+1/(n*2))*sz,ecy=sz/2,ew=(sz/n)*0.28,eh=sz*0.52;
-      ctx.save();ctx.translate(ecx,ecy);ctx.rotate(Math.PI/4);
-      ctx.fillRect(-ew/2,-eh/2,ew,eh);ctx.restore();
+      var cx=(i/n+1/(n*2))*sz,cy=sz/2,w=(sz/n)*0.28,h=sz*0.52;
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(Math.PI/4);
+      ctx.fillRect(-w/2,-h/2,w,h);ctx.restore();
     }
   } else {
     var sw=(sz/n)*(pat==='wide'?0.42:0.20),sh=sz*0.72,sy=(sz-sh)/2;
@@ -202,33 +167,32 @@ function buildGlow(){
     new THREE.MeshBasicMaterial({color:0xffcc66,transparent:true,opacity:0.12,side:THREE.BackSide}));
   glowMesh.position.set(CX,CY,CZ); scene.add(glowMesh);
 }
-buildCyl();
-buildGlow();
+buildCyl(); buildGlow();
 
 // ── In-VR panel ────────────────────────────────────────
-var panel, panelCanvas, panelCtx, panelTex;
-var PW=512, PH=300;
+var panel,panelCanvas,panelCtx,panelTex;
+var PW=512,PH=300;
 var BTNS=[
-  {id:'delta', label:'Delta',  sub:'1–4 Hz',  hz:2,  x:16, y:56,w:108,h:56},
-  {id:'theta', label:'Theta',  sub:'4–8 Hz',  hz:6,  x:132,y:56,w:108,h:56},
-  {id:'alpha', label:'Alpha',  sub:'8–13 Hz', hz:10, x:248,y:56,w:108,h:56},
-  {id:'beta',  label:'Beta',   sub:'13–30 Hz',hz:20, x:364,y:56,w:108,h:56},
-  {id:'hzdown',label:'−  Hz',                x:16, y:142,w:108,h:48},
-  {id:'hzup',  label:'+  Hz',                x:132,y:142,w:108,h:48},
-  {id:'slits',  label:'Classic slits', x:16, y:222,w:150,h:48},
-  {id:'wide',   label:'Wide slits',    x:174,y:222,w:150,h:48},
-  {id:'diamond',label:'Diamond cuts',  x:332,y:222,w:164,h:48},
+  {id:'delta',label:'Delta',  sub:'1–4 Hz', hz:2, x:16,y:56,w:108,h:56},
+  {id:'theta',label:'Theta',  sub:'4–8 Hz', hz:6, x:132,y:56,w:108,h:56},
+  {id:'alpha',label:'Alpha',  sub:'8–13 Hz',hz:10,x:248,y:56,w:108,h:56},
+  {id:'beta', label:'Beta',   sub:'13–30 Hz',hz:20,x:364,y:56,w:108,h:56},
+  {id:'hzdown',label:'−  Hz', x:16,y:142,w:108,h:48},
+  {id:'hzup',  label:'+  Hz', x:132,y:142,w:108,h:48},
+  {id:'slits',  label:'Classic', x:16,y:222,w:150,h:48},
+  {id:'wide',   label:'Wide',    x:174,y:222,w:150,h:48},
+  {id:'diamond',label:'Diamond', x:332,y:222,w:164,h:48},
 ];
 function drawPanel(){
   var ctx=panelCtx;
   ctx.clearRect(0,0,PW,PH);
   ctx.fillStyle='rgba(5,4,2,0.94)'; ctx.fillRect(0,0,PW,PH);
   ctx.strokeStyle='#3a2e1a'; ctx.lineWidth=1; ctx.strokeRect(1,1,PW-2,PH-2);
-  ctx.fillStyle='#c8a060'; ctx.font='500 14px serif';
+  ctx.fillStyle='#c8a060'; ctx.font='bold 14px serif';
   ctx.textAlign='left'; ctx.textBaseline='middle';
   ctx.fillText('DREAMACHINE', 16, 28);
   ctx.fillStyle='#666'; ctx.font='11px sans-serif'; ctx.textAlign='right';
-  ctx.fillText(skey().toUpperCase()+'  ·  '+hz.toFixed(1)+' Hz', PW-16, 28);
+  ctx.fillText(skey().toUpperCase()+' · '+hz.toFixed(1)+' Hz', PW-16, 28);
   ctx.strokeStyle='#2a2010'; ctx.lineWidth=0.5;
   ctx.beginPath(); ctx.moveTo(16,44); ctx.lineTo(PW-16,44); ctx.stroke();
   BTNS.forEach(function(b){
@@ -238,11 +202,11 @@ function drawPanel(){
     ctx.lineWidth=active?1:0.5;
     rrP(ctx,b.x,b.y,b.w,b.h,4); ctx.fill(); ctx.stroke();
     ctx.fillStyle=active?'#000':'#999';
-    ctx.font='500 12px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(b.label, b.x+b.w/2, b.sub?b.y+b.h/2-7:b.y+b.h/2);
+    ctx.font='bold 12px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(b.label,b.x+b.w/2,b.sub?b.y+b.h/2-7:b.y+b.h/2);
     if(b.sub){
       ctx.fillStyle=active?'#444':'#555'; ctx.font='10px sans-serif';
-      ctx.fillText(b.sub, b.x+b.w/2, b.y+b.h/2+9);
+      ctx.fillText(b.sub,b.x+b.w/2,b.y+b.h/2+9);
     }
   });
   panelTex.needsUpdate=true;
@@ -264,12 +228,11 @@ function buildPanel(){
   panel=new THREE.Mesh(new THREE.PlaneGeometry(pw,ph),
     new THREE.MeshBasicMaterial({map:panelTex,transparent:true,depthTest:false}));
   panel.position.set(0,0.9,-1.0);
-  scene.add(panel);
-  drawPanel();
+  scene.add(panel); drawPanel();
 }
 buildPanel();
 
-// Controllers
+// ── Controllers ────────────────────────────────────────
 var raycaster=new THREE.Raycaster();
 function setupControllers(){
   [0,1].forEach(function(i){
@@ -291,8 +254,7 @@ function setupControllers(){
       new THREE.CylinderGeometry(0.002,0.002,2,6),
       new THREE.MeshBasicMaterial({color:0xc8a060,transparent:true,opacity:0.4}));
     ray.rotation.x=-Math.PI/2; ray.position.z=-1;
-    c.add(ray);
-    scene.add(c);
+    c.add(ray); scene.add(c);
   });
 }
 function handleBtn(id){
@@ -306,7 +268,7 @@ function handleBtn(id){
   drawPanel();
 }
 
-// Render loop
+// ── Render loop ────────────────────────────────────────
 renderer.setAnimationLoop(function(){
   var dt=Math.min(clock.getDelta(),0.05);
   angle+=dt*hz*Math.PI*2;
@@ -326,49 +288,35 @@ window.addEventListener('resize',function(){
   renderer.setSize(innerWidth,innerHeight);
 });
 
-// ── VR ENTRY ───────────────────────────────────────────
+// ── VR Entry ───────────────────────────────────────────
 function enterVR(){
-  // Belt-and-suspenders guard
-  if(typeof renderer === 'undefined' || !renderer.xr) {
-    msg.textContent = 'Error: 3D renderer not ready. Please reload the page.';
-    msg.style.color = '#c84444';
-    return;
-  }
-
-  if(!navigator.xr) {
-    msg.textContent = 'WebXR not available. Use Meta Browser on Quest.';
-    msg.style.color = '#c84444';
-    // Still show the canvas preview
+  if(!navigator.xr){
+    log('No WebXR — showing browser preview');
     document.getElementById('page').style.display='none';
     return;
   }
-
-  msg.textContent = 'Starting VR session…';
-  msg.style.color = '#c8a060';
-  log('Requesting XR session…');
-
+  msg.textContent='Starting VR…';
+  msg.style.color='#c8a060';
+  log('Requesting immersive-vr session…');
   navigator.xr.requestSession('immersive-vr',{
     requiredFeatures:['local-floor'],
     optionalFeatures:['bounded-floor','hand-tracking']
   }).then(function(session){
-    log('Session granted, setting up…');
+    log('Session granted — going immersive');
     renderer.xr.setReferenceSpaceType('local-floor');
     return renderer.xr.setSession(session).then(function(){
-      log('XR session active');
       setupControllers();
       document.getElementById('page').style.display='none';
       session.addEventListener('end',function(){
         document.getElementById('page').style.display='flex';
-        msg.textContent='Session ended. Put on your headset and tap to re-enter.';
+        msg.textContent='Tap to re-enter.';
         msg.style.color='#888';
-        log('Session ended');
       });
     });
   }).catch(function(e){
-    msg.textContent = 'Error: ' + e.message;
-    msg.style.color = '#c84444';
-    log('XR FAILED: ' + e.message);
-    console.error(e);
+    msg.textContent='Error: '+e.message;
+    msg.style.color='#c84444';
+    log('XR error: '+e.message);
   });
 }
 </script>
