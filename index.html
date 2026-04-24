@@ -9,364 +9,240 @@
 * { box-sizing:border-box; margin:0; padding:0; }
 html, body { width:100%; height:100%; background:#000; overflow:hidden; font-family:'Lato',sans-serif; }
 
-/* canvas sits behind all UI */
-#c { display:block; position:fixed; inset:0; z-index:0; }
+#c { position:fixed; inset:0; z-index:0; display:block; }
 
-/* ── WARNING ── */
-#warn {
-  position:fixed; inset:0; background:#000;
+/* overlays sit above canvas */
+#overlay {
+  position:fixed; inset:0; z-index:10;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:20px; z-index:200; padding:2.5rem; text-align:center;
+  gap:20px; padding:2rem; text-align:center; background:#000;
 }
-#warn::before {
+#overlay::before {
   content:''; position:absolute; inset:0;
   background:radial-gradient(ellipse at center,#1a0a00 0%,#000 70%);
   pointer-events:none;
 }
-#warn > * { position:relative; z-index:1; }
-.warn-glyph { font-size:48px; animation:breathe 4s ease-in-out infinite; }
+#overlay > * { position:relative; z-index:1; }
+
+.glyph { font-size:48px; animation:breathe 4s ease-in-out infinite; }
 @keyframes breathe { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)} }
-.warn-epil { font-family:'Cinzel',serif; font-size:11px; font-weight:400; letter-spacing:0.35em; color:#c84444; text-transform:uppercase; }
-.warn-title { font-family:'Cinzel',serif; font-size:28px; font-weight:500; color:#f0e0c0; letter-spacing:0.12em; }
-.warn-sub { font-size:11px; letter-spacing:0.22em; color:#664422; text-transform:uppercase; margin-top:4px; }
-.warn-body { font-size:13px; color:#777; max-width:460px; line-height:1.8; font-weight:300; }
-.warn-body strong { color:#aaa; font-weight:400; }
-.warn-note { font-size:13px; color:#a07838; max-width:420px; line-height:1.7; font-style:italic; }
+.epil { font-family:'Cinzel',serif; font-size:11px; letter-spacing:0.35em; color:#c84444; text-transform:uppercase; }
+.title { font-family:'Cinzel',serif; font-size:28px; font-weight:500; color:#f0e0c0; letter-spacing:0.12em; }
+.sub { font-size:11px; letter-spacing:0.2em; color:#664422; text-transform:uppercase; margin-top:4px; }
+.body { font-size:13px; color:#777; max-width:460px; line-height:1.8; font-weight:300; }
+.body strong { color:#aaa; font-weight:400; }
+.note { font-size:13px; color:#a07838; max-width:420px; line-height:1.7; font-style:italic; }
 .divider { width:100px; height:0.5px; background:#2a2a2a; }
-#vr-status { font-size:12px; min-height:18px; color:#666; letter-spacing:0.06em; }
-.enter-btn {
-  font-family:'Cinzel',serif; background:transparent;
-  border:0.5px solid #c8a060; color:#c8a060;
-  padding:14px 44px; font-size:12px; letter-spacing:0.3em;
-  text-transform:uppercase; cursor:pointer;
-  transition:background 0.3s,color 0.3s;
-}
-.enter-btn:hover { background:#c8a060; color:#000; }
-.warn-small { font-size:11px; color:#3a3a3a; letter-spacing:0.06em; }
 
-/* ── SETTINGS ── */
-#settings {
-  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.96);
-  flex-direction:column; align-items:center; justify-content:center;
-  gap:22px; z-index:150; padding:2rem; text-align:center;
-}
-#settings.visible { display:flex; }
-.settings-title { font-family:'Cinzel',serif; font-size:11px; letter-spacing:0.3em; color:#5a4a30; text-transform:uppercase; }
+/* pages */
+.page { display:none; flex-direction:column; align-items:center; gap:20px; width:100%; }
+.page.active { display:flex; }
 
-.state-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; max-width:420px; }
-.state-card { border:0.5px solid #222; padding:16px 14px; cursor:pointer; transition:border-color 0.2s,background 0.2s; text-align:left; }
-.state-card:hover { border-color:#444; background:#080808; }
-.state-card.selected { border-color:#c8a060; background:#0c0800; }
-.state-name { font-family:'Cinzel',serif; font-size:14px; color:#886630; letter-spacing:0.12em; }
-.state-card.selected .state-name { color:#c8a060; }
-.state-hz { font-size:11px; color:#444; margin-top:2px; }
-.state-desc { font-size:11px; color:#555; margin-top:7px; line-height:1.5; }
-.state-card.selected .state-desc { color:#777; }
+/* warn page */
+#status { font-size:12px; min-height:18px; color:#666; letter-spacing:0.06em; }
 
-.hz-row { display:flex; align-items:center; gap:14px; width:100%; max-width:420px; }
-.ctrl-label { font-size:10px; letter-spacing:0.2em; color:#444; text-transform:uppercase; font-family:'Cinzel',serif; white-space:nowrap; }
-input[type=range] { flex:1; -webkit-appearance:none; background:transparent; cursor:pointer; height:20px; }
+/* settings page */
+.stitle { font-family:'Cinzel',serif; font-size:11px; letter-spacing:0.3em; color:#5a4a30; text-transform:uppercase; }
+.grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; max-width:420px; }
+.card { border:0.5px solid #222; padding:16px 14px; cursor:pointer; transition:border-color 0.2s,background 0.2s; text-align:left; }
+.card:hover { border-color:#444; background:#080808; }
+.card.sel { border-color:#c8a060; background:#0c0800; }
+.cname { font-family:'Cinzel',serif; font-size:14px; color:#886630; letter-spacing:0.12em; }
+.card.sel .cname { color:#c8a060; }
+.chz { font-size:11px; color:#444; margin-top:2px; }
+.cdesc { font-size:11px; color:#555; margin-top:7px; line-height:1.5; }
+.card.sel .cdesc { color:#777; }
+.hrow { display:flex; align-items:center; gap:14px; width:100%; max-width:420px; }
+.clabel { font-size:10px; letter-spacing:0.2em; color:#444; text-transform:uppercase; font-family:'Cinzel',serif; white-space:nowrap; }
+input[type=range] { flex:1; -webkit-appearance:none; background:transparent; cursor:pointer; height:24px; }
 input[type=range]::-webkit-slider-runnable-track { height:1px; background:#2a2a2a; }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#c8a060; margin-top:-8.5px; }
-.hz-val { font-size:13px; color:#c8a060; min-width:46px; font-family:'Cinzel',serif; }
-
-.pattern-row { display:flex; gap:8px; width:100%; max-width:420px; }
-.pat-btn {
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#c8a060; margin-top:-9.5px; }
+.hval { font-size:13px; color:#c8a060; min-width:46px; font-family:'Cinzel',serif; }
+.prow { display:flex; gap:8px; width:100%; max-width:420px; }
+.pbtn {
   flex:1; font-family:'Cinzel',serif; font-size:10px; letter-spacing:0.12em;
   text-transform:uppercase; background:transparent; border:0.5px solid #222;
   color:#444; padding:12px 4px; cursor:pointer; transition:all 0.2s;
 }
-.pat-btn:hover { border-color:#555; color:#888; }
-.pat-btn.selected { border-color:#c8a060; color:#c8a060; background:#0c0800; }
+.pbtn:hover { border-color:#555; color:#888; }
+.pbtn.sel { border-color:#c8a060; color:#c8a060; background:#0c0800; }
+#errmsg { font-size:12px; color:#c84444; min-height:16px; }
 
-#err-msg { font-size:12px; color:#c84444; min-height:16px; letter-spacing:0.04em; }
-
-.enter-vr-btn {
+/* shared button */
+.btn {
   font-family:'Cinzel',serif; background:#c8a060; color:#000; border:none;
   padding:18px 0; font-size:13px; letter-spacing:0.3em; text-transform:uppercase;
   cursor:pointer; width:100%; max-width:420px; transition:opacity 0.2s;
 }
-.enter-vr-btn:hover { opacity:0.85; }
-.enter-vr-btn:disabled { opacity:0.3; cursor:default; }
+.btn:hover { opacity:0.85; }
+.btn.ghost { background:transparent; border:0.5px solid #c8a060; color:#c8a060; }
+.btn.ghost:hover { background:#c8a060; color:#000; }
 
-/* ── Eyes reminder ── */
-#eyes-msg {
+/* eyes reminder */
+#eyesmsg {
   display:none; position:fixed; top:0; left:0; right:0; text-align:center;
   padding:16px; font-family:'Cinzel',serif; font-size:11px; letter-spacing:0.3em;
-  color:rgba(200,160,96,0.55); z-index:50; pointer-events:none;
+  color:rgba(200,160,96,0.55); z-index:20; pointer-events:none;
   text-transform:uppercase; animation:pulse 4s ease-in-out infinite;
 }
-#eyes-msg.visible { display:block; }
 @keyframes pulse { 0%,100%{opacity:0.35} 50%{opacity:0.85} }
 </style>
 </head>
 <body>
 
-<!-- THREE.JS — loaded first, synchronously, before any script runs -->
+<!-- Three.js loaded synchronously before anything else -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.min.js"></script>
 
-<!-- ① WARNING -->
-<div id="warn">
-  <div class="warn-glyph">☀</div>
-  <p class="warn-epil">⚠ &nbsp; Photosensitive Epilepsy Warning &nbsp; ⚠</p>
-  <div>
-    <div class="warn-title">Dreamachine</div>
-    <div class="warn-sub">After Brion Gysin &amp; William S. Burroughs · 1961</div>
+<!-- canvas for Three.js -->
+<canvas id="c"></canvas>
+
+<!-- all UI in one overlay container -->
+<div id="overlay">
+
+  <!-- PAGE 1: warning -->
+  <div id="pg-warn" class="page active">
+    <div class="glyph">☀</div>
+    <p class="epil">⚠ &nbsp; Photosensitive Epilepsy Warning &nbsp; ⚠</p>
+    <div>
+      <div class="title">Dreamachine</div>
+      <div class="sub">After Brion Gysin &amp; William S. Burroughs · 1961</div>
+    </div>
+    <div class="divider"></div>
+    <p class="body">This experience produces <strong>rapid rhythmic flickering light</strong> between 1–30 Hz designed to fill your field of vision. It can trigger seizures in people with <strong>photosensitive epilepsy</strong>. Do not use if prone to seizures. Stop immediately if you feel discomfort or dizziness.</p>
+    <p class="note">Close your eyes once inside — the light passes through your eyelids and the visions are your own.</p>
+    <p id="status">Checking for VR support…</p>
+    <button class="btn ghost" onclick="goSettings()">I understand — proceed</button>
+    <p style="font-size:11px;color:#3a3a3a;letter-spacing:0.06em">WebXR · Meta Quest 2 &amp; 3 · Open in Meta Browser on your headset</p>
   </div>
-  <div class="divider"></div>
-  <p class="warn-body">
-    This experience produces <strong>rapid rhythmic flickering light</strong> between 1–30 Hz designed to fill your field of vision. It can trigger seizures in people with <strong>photosensitive epilepsy</strong>. Do not use if you are prone to seizures. Stop immediately if you feel discomfort or dizziness.
-  </p>
-  <p class="warn-note">
-    Close your eyes once inside — the light passes through your eyelids and the visions are your own.
-  </p>
-  <div id="vr-status">Checking for VR support…</div>
-  <button class="enter-btn" onclick="showSettings()">I understand — proceed</button>
-  <p class="warn-small">WebXR · Meta Quest 2 &amp; 3 · Open in Meta Browser on your headset</p>
+
+  <!-- PAGE 2: settings + enter VR -->
+  <div id="pg-settings" class="page">
+    <p class="stitle">Choose your state before entering</p>
+    <div class="grid">
+      <div class="card" data-hz="2" onclick="pickState(this)">
+        <div class="cname">Delta</div>
+        <div class="chz">1 – 4 Hz</div>
+        <div class="cdesc">Deep and oceanic. The edge of dreamless sleep.</div>
+      </div>
+      <div class="card sel" data-hz="6" onclick="pickState(this)">
+        <div class="cname">Theta</div>
+        <div class="chz">4 – 8 Hz</div>
+        <div class="cdesc">Hypnagogic. The richest vision state. Gysin's threshold.</div>
+      </div>
+      <div class="card" data-hz="10" onclick="pickState(this)">
+        <div class="cname">Alpha</div>
+        <div class="chz">8 – 13 Hz</div>
+        <div class="cdesc">Relaxed wakefulness. The original Dreamachine frequency.</div>
+      </div>
+      <div class="card" data-hz="20" onclick="pickState(this)">
+        <div class="cname">Beta</div>
+        <div class="chz">13 – 30 Hz</div>
+        <div class="cdesc">Alert and sharp. Fast geometric patterns.</div>
+      </div>
+    </div>
+    <div class="hrow">
+      <span class="clabel">Fine tune</span>
+      <input type="range" id="hzSlider" min="1" max="30" step="0.5" value="6" oninput="onHz(this.value)">
+      <span class="hval" id="hzVal">6 Hz</span>
+    </div>
+    <div class="prow">
+      <button class="pbtn sel" data-pat="slits" onclick="pickPat(this)">Classic slits</button>
+      <button class="pbtn" data-pat="wide"   onclick="pickPat(this)">Wide slits</button>
+      <button class="pbtn" data-pat="diamond" onclick="pickPat(this)">Diamond cuts</button>
+    </div>
+    <p id="errmsg"></p>
+    <button class="btn" id="vrBtn" onclick="enterVR()">Enter VR</button>
+  </div>
+
 </div>
 
-<!-- ② SETTINGS -->
-<div id="settings">
-  <div class="settings-title">Choose your state before entering</div>
-  <div class="state-grid">
-    <div class="state-card" data-hz="2" onclick="selectState(this)">
-      <div class="state-name">Delta</div>
-      <div class="state-hz">1 – 4 Hz</div>
-      <div class="state-desc">Deep and oceanic. The edge of dreamless sleep.</div>
-    </div>
-    <div class="state-card selected" data-hz="6" onclick="selectState(this)">
-      <div class="state-name">Theta</div>
-      <div class="state-hz">4 – 8 Hz</div>
-      <div class="state-desc">Hypnagogic. The richest vision state. Gysin's threshold.</div>
-    </div>
-    <div class="state-card" data-hz="10" onclick="selectState(this)">
-      <div class="state-name">Alpha</div>
-      <div class="state-hz">8 – 13 Hz</div>
-      <div class="state-desc">Relaxed wakefulness. The original Dreamachine frequency.</div>
-    </div>
-    <div class="state-card" data-hz="20" onclick="selectState(this)">
-      <div class="state-name">Beta</div>
-      <div class="state-hz">13 – 30 Hz</div>
-      <div class="state-desc">Alert and sharp. Fast geometric patterns.</div>
-    </div>
-  </div>
-  <div class="hz-row">
-    <span class="ctrl-label">Fine tune</span>
-    <input type="range" id="hzSlider" min="1" max="30" step="0.5" value="6" oninput="onHzInput(this.value)">
-    <span class="hz-val" id="hzVal">6 Hz</span>
-  </div>
-  <div class="pattern-row">
-    <button class="pat-btn selected" data-pat="slits" onclick="selectPat(this)">Classic slits</button>
-    <button class="pat-btn" data-pat="wide" onclick="selectPat(this)">Wide slits</button>
-    <button class="pat-btn" data-pat="diamond" onclick="selectPat(this)">Diamond cuts</button>
-  </div>
-  <div id="err-msg"></div>
-  <button class="enter-vr-btn" id="enter-vr-btn" onclick="enterVR()">Enter VR</button>
-</div>
-
-<!-- ③ Eyes reminder (shown inside experience) -->
-<div id="eyes-msg">✦ &nbsp; close your eyes and let the light find you &nbsp; ✦</div>
+<div id="eyesmsg">✦ &nbsp; close your eyes and let the light find you &nbsp; ✦</div>
 
 <script>
-// ─────────────────────────────────────────────────────────
-// RENDERER IS BUILT IMMEDIATELY on script execution.
-// It is never undefined by the time any button is clicked.
-// ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// THREE.JS SETUP — runs immediately, synchronously, at page load
+// renderer is guaranteed to exist before any user interaction
+// ─────────────────────────────────────────────────────────────────────────────
 
-var renderer = new THREE.WebGLRenderer({ antialias: true });
+var canvas   = document.getElementById('c');
+var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
-renderer.xr.setReferenceSpaceType('local-floor');
-renderer.domElement.id = 'c';
-document.body.appendChild(renderer.domElement);
+// NOTE: do NOT call setReferenceSpaceType here — call it only after session starts
 
-// Scene
-var scene = new THREE.Scene();
+var scene  = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-// Camera — overridden by headset in XR, used normally in browser
 var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 50);
 camera.position.set(0, 1.6, 0);
 
 var clock = new THREE.Clock();
-
-// State
-var hz = 6;
-var patternType = 'slits';
+var hz    = 6;
+var pat   = 'slits';
 var angle = 0;
-var cylinderMesh, topCap, bottomCap, lightCore, glowMesh, flickerLight;
 
-// Cylinder position: eye height, arm's length in front
-var CX = 0, CY = 1.6, CZ = -1.4;
+var CX = 0, CY = 1.6, CZ = -1.4; // cylinder: eye-height, arm's length ahead
 
-var LIGHT_COLORS = {
-  delta: 0x4466ee,
-  theta: 0xffaa44,
-  alpha: 0x88ffaa,
-  beta:  0xff8866
-};
+var LCOLORS = { delta:0x4466ee, theta:0xffaa44, alpha:0x88ffaa, beta:0xff8866 };
+function skey() { return hz<4?'delta':hz<8?'theta':hz<13?'alpha':'beta'; }
 
-function stateKey() {
-  return hz < 4 ? 'delta' : hz < 8 ? 'theta' : hz < 13 ? 'alpha' : 'beta';
-}
+// ── Lights ────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x221508, 1.5));
 
-// ── Build the static scene elements ──────────────────────
+var fLight = new THREE.PointLight(0xffaa44, 15, 7);
+fLight.position.set(CX, CY, CZ);
+scene.add(fLight);
 
-// Lighting
-var ambient = new THREE.AmbientLight(0x110a04, 1.0);
-scene.add(ambient);
+scene.add(new THREE.PointLight(0x331100, 4, 6));
 
-flickerLight = new THREE.PointLight(0xffaa44, 12, 6);
-flickerLight.position.set(CX, CY, CZ);
-scene.add(flickerLight);
-
-var fill = new THREE.PointLight(0x331100, 4, 6);
-fill.position.set(CX, CY + 0.8, CZ);
-scene.add(fill);
-
+// ── Room ──────────────────────────────────────────────────
 // Floor
 var floor = new THREE.Mesh(
   new THREE.PlaneGeometry(14, 14),
-  new THREE.MeshStandardMaterial({ color: 0x080604, roughness: 1.0 })
+  new THREE.MeshStandardMaterial({ color:0x090705, roughness:1.0 })
 );
 floor.rotation.x = -Math.PI / 2;
-floor.position.y = 0;
 scene.add(floor);
 
-// Dark room box — gives spatial grounding in VR
-var roomMat = new THREE.MeshStandardMaterial({ color: 0x060402, roughness: 1.0, side: THREE.BackSide });
-var room = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 10), roomMat);
-room.position.set(0, 2.5, 0);
+// Walls — BackSide box so user is inside it
+var room = new THREE.Mesh(
+  new THREE.BoxGeometry(10, 5, 10),
+  new THREE.MeshStandardMaterial({ color:0x060402, roughness:1.0, side:THREE.BackSide })
+);
+room.position.y = 2.5;
 scene.add(room);
 
-// Build cylinder and glow immediately
-buildCylinder();
-buildGlow();
-
-// Start render loop immediately (renders to canvas even before VR)
-renderer.setAnimationLoop(function() {
-  tick();
-  renderer.render(scene, camera);
-});
-
-// ── VR status check ───────────────────────────────────────
-var vrAvailable = false;
-if (navigator.xr) {
-  navigator.xr.isSessionSupported('immersive-vr').then(function(ok) {
-    vrAvailable = ok;
-    var el = document.getElementById('vr-status');
-    el.textContent = ok ? '✦ VR headset detected' : 'No headset detected — will show 3D preview';
-    el.style.color = ok ? '#88cc88' : '#666';
-  }).catch(function() {
-    document.getElementById('vr-status').textContent = '';
-  });
-} else {
-  var el = document.getElementById('vr-status');
-  el.textContent = 'WebXR not available — use Meta Browser on Quest';
-  el.style.color = '#c84444';
-}
-
-// ── UI handlers ───────────────────────────────────────────
-function showSettings() {
-  document.getElementById('warn').style.display = 'none';
-  document.getElementById('settings').classList.add('visible');
-}
-
-function selectState(card) {
-  document.querySelectorAll('.state-card').forEach(function(c) { c.classList.remove('selected'); });
-  card.classList.add('selected');
-  hz = parseFloat(card.dataset.hz);
-  document.getElementById('hzSlider').value = hz;
-  document.getElementById('hzVal').textContent = hz + ' Hz';
-}
-
-function onHzInput(v) {
-  hz = parseFloat(v);
-  document.getElementById('hzVal').textContent = hz + ' Hz';
-}
-
-function selectPat(btn) {
-  document.querySelectorAll('.pat-btn').forEach(function(b) { b.classList.remove('selected'); });
-  btn.classList.add('selected');
-  patternType = btn.dataset.pat;
-  buildCylinder();
-}
-
-// ── Enter VR ──────────────────────────────────────────────
-function enterVR() {
-  var errEl = document.getElementById('err-msg');
-  errEl.textContent = '';
-
-  // renderer is always defined here — it was built at page load
-  if (!navigator.xr) {
-    errEl.textContent = 'WebXR not supported. Use Meta Browser on Quest.';
-    return;
-  }
-
-  if (!vrAvailable) {
-    // Graceful fallback: just enter the 3D browser preview
-    document.getElementById('settings').classList.remove('visible');
-    document.getElementById('eyes-msg').classList.add('visible');
-    return;
-  }
-
-  navigator.xr.requestSession('immersive-vr', {
-    optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
-  }).then(function(session) {
-    return renderer.xr.setSession(session).then(function() {
-      document.getElementById('settings').classList.remove('visible');
-      document.getElementById('eyes-msg').classList.add('visible');
-      session.addEventListener('end', function() {
-        document.getElementById('settings').classList.add('visible');
-        document.getElementById('eyes-msg').classList.remove('visible');
-      });
-    });
-  }).catch(function(err) {
-    errEl.textContent = 'VR error: ' + err.message;
-  });
-}
-
-window.addEventListener('resize', function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
 // ── Cylinder ──────────────────────────────────────────────
-function makeAlphaMap() {
-  var sz = 1024;
-  var cv = document.createElement('canvas');
+var cyl, capT, capB, bulb, glow;
+
+function makeAlphaCanvas() {
+  var sz  = 1024;
+  var cv  = document.createElement('canvas');
   cv.width = cv.height = sz;
   var ctx = cv.getContext('2d');
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, sz, sz);
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,sz,sz);
   ctx.fillStyle = '#fff';
   var n = 10;
-  if (patternType === 'diamond') {
-    for (var i = 0; i < n; i++) {
-      var cx = (i / n + 1 / (n * 2)) * sz;
-      var cy = sz / 2;
-      var w = (sz / n) * 0.28, h = sz * 0.52;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(Math.PI / 4);
-      ctx.fillRect(-w/2, -h/2, w, h);
-      ctx.restore();
+  if (pat === 'diamond') {
+    for (var i=0;i<n;i++) {
+      var cx=(i/n+1/(n*2))*sz, cy=sz/2;
+      var w=(sz/n)*0.28, h=sz*0.52;
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.PI/4);
+      ctx.fillRect(-w/2,-h/2,w,h); ctx.restore();
     }
   } else {
-    var slitW = (sz / n) * (patternType === 'wide' ? 0.42 : 0.20);
-    var slitH = sz * 0.72;
-    var slitY = (sz - slitH) / 2;
-    for (var j = 0; j < n; j++) {
-      var x = (j / n) * sz + (sz / n - slitW) / 2;
-      rrect(ctx, x, slitY, slitW, slitH, slitW * 0.4);
+    var sw = (sz/n)*(pat==='wide'?0.42:0.20);
+    var sh = sz*0.72, sy=(sz-sh)/2;
+    for (var j=0;j<n;j++) {
+      var x=(j/n)*sz+(sz/n-sw)/2;
+      rr(ctx,x,sy,sw,sh,sw*0.4);
     }
   }
-  return new THREE.CanvasTexture(cv);
+  return cv;
 }
 
-function rrect(ctx, x, y, w, h, r) {
+function rr(ctx,x,y,w,h,r) {
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
   ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
@@ -375,70 +251,157 @@ function rrect(ctx, x, y, w, h, r) {
   ctx.closePath(); ctx.fill();
 }
 
-function buildCylinder() {
-  if (cylinderMesh) {
-    scene.remove(cylinderMesh);
-    scene.remove(topCap);
-    scene.remove(bottomCap);
-    cylinderMesh.geometry.dispose();
-    cylinderMesh.material.dispose();
-    topCap.geometry.dispose();   topCap.material.dispose();
-    bottomCap.geometry.dispose(); bottomCap.material.dispose();
+function buildCyl() {
+  if (cyl) {
+    [cyl,capT,capB].forEach(function(m){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
   }
-  var R = 0.28, H = 0.55;
-  cylinderMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(R, R, H, 128, 1, true),
+  var R=0.28, H=0.55;
+  cyl = new THREE.Mesh(
+    new THREE.CylinderGeometry(R,R,H,128,1,true),
     new THREE.MeshStandardMaterial({
-      color: 0x1a1000, roughness: 0.9, metalness: 0.05,
-      alphaMap: makeAlphaMap(), alphaTest: 0.5,
-      side: THREE.DoubleSide, transparent: true
+      color:0x1a1000, roughness:0.9, metalness:0.05,
+      alphaMap: new THREE.CanvasTexture(makeAlphaCanvas()),
+      alphaTest:0.5, side:THREE.DoubleSide, transparent:true
     })
   );
-  cylinderMesh.position.set(CX, CY, CZ);
-  scene.add(cylinderMesh);
+  cyl.position.set(CX,CY,CZ);
+  scene.add(cyl);
 
-  var capMat = new THREE.MeshStandardMaterial({ color: 0x0a0800, roughness: 1.0 });
-  topCap = new THREE.Mesh(new THREE.CircleGeometry(R, 64), capMat);
-  topCap.rotation.x = -Math.PI / 2;
-  topCap.position.set(CX, CY + H/2, CZ);
-  scene.add(topCap);
-  bottomCap = new THREE.Mesh(new THREE.CircleGeometry(R, 64), capMat);
-  bottomCap.rotation.x = Math.PI / 2;
-  bottomCap.position.set(CX, CY - H/2, CZ);
-  scene.add(bottomCap);
+  var cm = new THREE.MeshStandardMaterial({color:0x0a0800,roughness:1});
+  capT = new THREE.Mesh(new THREE.CircleGeometry(R,64), cm);
+  capT.rotation.x = -Math.PI/2; capT.position.set(CX,CY+H/2,CZ);
+  scene.add(capT);
+  capB = new THREE.Mesh(new THREE.CircleGeometry(R,64), cm.clone());
+  capB.rotation.x = Math.PI/2; capB.position.set(CX,CY-H/2,CZ);
+  scene.add(capB);
 }
 
 function buildGlow() {
-  lightCore = new THREE.Mesh(
-    new THREE.SphereGeometry(0.05, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xfff8e0 })
+  bulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05,16,16),
+    new THREE.MeshBasicMaterial({color:0xfff8e0})
   );
-  lightCore.position.set(CX, CY, CZ);
-  scene.add(lightCore);
+  bulb.position.set(CX,CY,CZ);
+  scene.add(bulb);
 
-  glowMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.15, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0.12, side: THREE.BackSide })
+  glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15,16,16),
+    new THREE.MeshBasicMaterial({color:0xffcc66,transparent:true,opacity:0.12,side:THREE.BackSide})
   );
-  glowMesh.position.set(CX, CY, CZ);
-  scene.add(glowMesh);
+  glow.position.set(CX,CY,CZ);
+  scene.add(glow);
 }
 
-// ── Animation tick ────────────────────────────────────────
-function tick() {
+buildCyl();
+buildGlow();
+
+// ── Render loop ───────────────────────────────────────────
+renderer.setAnimationLoop(function() {
   var dt = Math.min(clock.getDelta(), 0.05);
   angle += dt * hz * Math.PI * 2;
-  if (cylinderMesh) cylinderMesh.rotation.y = angle;
+  if (cyl) cyl.rotation.y = angle;
+  var f = 0.5 + 0.5*Math.sin(angle);
+  fLight.intensity = 8 + 20*f;
+  fLight.color.setHex(LCOLORS[skey()]);
+  if (bulb) { var b=0.6+0.4*f; bulb.material.color.setRGB(b,b*0.97,b*0.84); }
+  if (glow) glow.material.opacity = 0.05+0.22*f;
+  renderer.render(scene, camera);
+});
 
-  var flicker = 0.5 + 0.5 * Math.sin(angle);
-  flickerLight.intensity = 6 + 18 * flicker;
-  flickerLight.color.setHex(LIGHT_COLORS[stateKey()]);
+window.addEventListener('resize', function() {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
 
-  if (lightCore) {
-    var b = 0.6 + 0.4 * flicker;
-    lightCore.material.color.setRGB(b, b * 0.97, b * 0.84);
+// ── VR detection ──────────────────────────────────────────
+var vrSupported = false;
+var statusEl = document.getElementById('status');
+
+if (!navigator.xr) {
+  statusEl.textContent = 'WebXR not available — use Meta Browser on Quest';
+  statusEl.style.color = '#c84444';
+} else {
+  navigator.xr.isSessionSupported('immersive-vr')
+    .then(function(ok) {
+      vrSupported = ok;
+      statusEl.textContent = ok ? '✦ VR headset detected' : 'No headset — will show 3D browser preview';
+      statusEl.style.color  = ok ? '#88cc88' : '#666';
+    })
+    .catch(function() { statusEl.textContent = ''; });
+}
+
+// ── UI ────────────────────────────────────────────────────
+function goSettings() {
+  document.getElementById('pg-warn').classList.remove('active');
+  document.getElementById('pg-settings').classList.add('active');
+}
+
+function pickState(el) {
+  document.querySelectorAll('.card').forEach(function(c){ c.classList.remove('sel'); });
+  el.classList.add('sel');
+  hz = parseFloat(el.dataset.hz);
+  document.getElementById('hzSlider').value = hz;
+  document.getElementById('hzVal').textContent = hz + ' Hz';
+}
+
+function onHz(v) {
+  hz = parseFloat(v);
+  document.getElementById('hzVal').textContent = hz + ' Hz';
+}
+
+function pickPat(btn) {
+  document.querySelectorAll('.pbtn').forEach(function(b){ b.classList.remove('sel'); });
+  btn.classList.add('sel');
+  pat = btn.dataset.pat;
+  buildCyl();
+}
+
+// ── Enter VR ─────────────────────────────────────────────
+// This is the ONLY path into VR. No hidden buttons. No workarounds.
+function enterVR() {
+  var err = document.getElementById('errmsg');
+  err.textContent = '';
+
+  if (!navigator.xr) {
+    err.textContent = 'WebXR not supported. Open in Meta Browser on Quest.';
+    return;
   }
-  if (glowMesh) glowMesh.material.opacity = 0.05 + 0.22 * flicker;
+
+  if (!vrSupported) {
+    // No headset — drop into browser 3D preview
+    showExperience();
+    return;
+  }
+
+  navigator.xr.requestSession('immersive-vr', {
+    requiredFeatures: ['local-floor'],
+    optionalFeatures: ['bounded-floor', 'hand-tracking']
+  })
+  .then(function(session) {
+    // Only set reference space AFTER we have a session
+    renderer.xr.setReferenceSpaceType('local-floor');
+    return renderer.xr.setSession(session);
+  })
+  .then(function() {
+    showExperience();
+    var session = renderer.xr.getSession();
+    if (session) {
+      session.addEventListener('end', function() {
+        document.getElementById('overlay').style.display = 'flex';
+        document.getElementById('eyesmsg').style.display = 'none';
+        document.getElementById('pg-settings').classList.add('active');
+      });
+    }
+  })
+  .catch(function(e) {
+    err.textContent = 'VR error: ' + e.message;
+  });
+}
+
+function showExperience() {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('eyesmsg').style.display = 'block';
 }
 </script>
 </body>
