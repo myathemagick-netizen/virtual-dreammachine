@@ -9,12 +9,10 @@
 * { box-sizing:border-box; margin:0; padding:0; }
 html, body { width:100%; height:100%; background:#000; overflow:hidden; font-family:'Lato',sans-serif; }
 
-/* ── 2D warning page — only shown before VR starts ── */
 #page {
   position:fixed; inset:0; z-index:10;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:22px; padding:2.5rem; text-align:center;
-  background:#000;
+  gap:22px; padding:2.5rem; text-align:center; background:#000;
 }
 #page::before {
   content:''; position:absolute; inset:0;
@@ -32,17 +30,16 @@ html, body { width:100%; height:100%; background:#000; overflow:hidden; font-fam
 .body strong { color:#aaa; font-weight:400; }
 .note   { font-size:13px; color:#a07838; max-width:420px; line-height:1.7; font-style:italic; }
 .divider{ width:100px; height:0.5px; background:#2a2a2a; }
-#vstatus{ font-size:12px; min-height:18px; color:#666; letter-spacing:0.06em; }
 
 .bigbtn {
   font-family:'Cinzel',serif; background:#c8a060; color:#000; border:none;
   padding:18px 0; font-size:14px; letter-spacing:0.3em; text-transform:uppercase;
-  cursor:pointer; width:100%; max-width:440px; transition:opacity 0.2s;
+  cursor:pointer; width:100%; max-width:440px; transition:opacity 0.2s; margin-top:4px;
 }
-.bigbtn:hover  { opacity:0.85; }
-.bigbtn:disabled { opacity:0.35; cursor:default; background:#555; color:#999; }
+.bigbtn:hover { opacity:0.85; }
+.bigbtn:disabled { opacity:0.35; cursor:default; }
 
-#errmsg { font-size:12px; color:#c84444; min-height:16px; }
+#msg { font-size:13px; color:#888; min-height:20px; letter-spacing:0.04em; }
 .footnote { font-size:11px; color:#333; letter-spacing:0.06em; }
 </style>
 </head>
@@ -50,7 +47,6 @@ html, body { width:100%; height:100%; background:#000; overflow:hidden; font-fam
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.min.js"></script>
 
-<!-- ── 2D page: epilepsy warning + single Enter VR button ── -->
 <div id="page">
   <div class="glyph">☀</div>
   <p class="epil">⚠ &nbsp; Photosensitive Epilepsy Warning &nbsp; ⚠</p>
@@ -65,83 +61,69 @@ html, body { width:100%; height:100%; background:#000; overflow:hidden; font-fam
   <p class="note">
     Close your eyes once inside — the light passes through your eyelids and the visions are your own.
   </p>
-  <p id="vstatus">Checking for VR support…</p>
-  <p id="errmsg"></p>
-  <button class="bigbtn" id="enterbtn" disabled onclick="enterVR()">
-    Enter the Dreamachine
-  </button>
-  <p class="footnote">Meta Quest 2 &amp; 3 · Open in Meta Browser · Controls appear inside VR</p>
+  <p id="msg">Put on your headset and tap the button below.</p>
+  <button class="bigbtn" id="enterbtn" onclick="enterVR()">Enter the Dreamachine</button>
+  <p class="footnote">Meta Quest 2 &amp; 3 · Meta Browser · Controls appear inside VR</p>
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────
-// Three.js scene — built immediately at page load
-// ─────────────────────────────────────────────────────────
+// ── Three.js — built at page load, before any interaction ──
 
-var renderer = new THREE.WebGLRenderer({ antialias:true });
+var renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
-// Do NOT call setReferenceSpaceType here — set it after session is granted
-document.body.appendChild(renderer.domElement);
 renderer.domElement.style.cssText = 'position:fixed;inset:0;z-index:0;display:block;';
+document.body.appendChild(renderer.domElement);
 
 var scene  = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 var camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.01, 50);
 camera.position.set(0, 1.6, 0);
 var clock  = new THREE.Clock();
+var hz     = 6;
+var pat    = 'slits';
+var angle  = 0;
 
-// ── Dreamachine state ──────────────────────────────────
-var hz  = 6;
-var pat = 'slits';
-var angle = 0;
-var menuVisible = false;
-
-var CX=0, CY=1.6, CZ=-1.4; // cylinder position
-
+var CX=0, CY=1.6, CZ=-1.4;
 var LCOLORS = { delta:0x4466ee, theta:0xffaa44, alpha:0x88ffaa, beta:0xff8866 };
-function skey() { return hz<4?'delta':hz<8?'theta':hz<13?'alpha':'beta'; }
+function skey(){ return hz<4?'delta':hz<8?'theta':hz<13?'alpha':'beta'; }
 
-// ── Lighting ───────────────────────────────────────────
+// Lights
 scene.add(new THREE.AmbientLight(0x221508, 1.2));
 var fLight = new THREE.PointLight(0xffaa44, 15, 7);
 fLight.position.set(CX,CY,CZ);
 scene.add(fLight);
 
-// ── Room ───────────────────────────────────────────────
-var floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(14,14),
-  new THREE.MeshStandardMaterial({color:0x090705,roughness:1.0})
-);
+// Floor + room box
+var floor = new THREE.Mesh(new THREE.PlaneGeometry(14,14),
+  new THREE.MeshStandardMaterial({color:0x090705,roughness:1}));
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-var room = new THREE.Mesh(
-  new THREE.BoxGeometry(10,5,10),
-  new THREE.MeshStandardMaterial({color:0x060402,roughness:1.0,side:THREE.BackSide})
-);
+var room = new THREE.Mesh(new THREE.BoxGeometry(10,5,10),
+  new THREE.MeshStandardMaterial({color:0x060402,roughness:1,side:THREE.BackSide}));
 room.position.y = 2.5;
 scene.add(room);
 
-// ── Cylinder ───────────────────────────────────────────
+// Cylinder
 var cyl, capT, capB, bulb, glowMesh;
 
-function makeAlpha() {
+function makeAlpha(){
   var sz=1024, cv=document.createElement('canvas');
   cv.width=cv.height=sz;
   var ctx=cv.getContext('2d');
   ctx.fillStyle='#000'; ctx.fillRect(0,0,sz,sz);
   ctx.fillStyle='#fff';
   var n=10;
-  if (pat==='diamond') {
+  if(pat==='diamond'){
     for(var i=0;i<n;i++){
-      var cx=(i/n+1/(n*2))*sz, cy=sz/2, w=(sz/n)*0.28, h=sz*0.52;
+      var cx=(i/n+1/(n*2))*sz,cy=sz/2,w=(sz/n)*0.28,h=sz*0.52;
       ctx.save();ctx.translate(cx,cy);ctx.rotate(Math.PI/4);
       ctx.fillRect(-w/2,-h/2,w,h);ctx.restore();
     }
   } else {
-    var sw=(sz/n)*(pat==='wide'?0.42:0.20), sh=sz*0.72, sy=(sz-sh)/2;
+    var sw=(sz/n)*(pat==='wide'?0.42:0.20),sh=sz*0.72,sy=(sz-sh)/2;
     for(var j=0;j<n;j++){
       var x=(j/n)*sz+(sz/n-sw)/2;
       rr(ctx,x,sy,sw,sh,sw*0.4);
@@ -149,7 +131,6 @@ function makeAlpha() {
   }
   return new THREE.CanvasTexture(cv);
 }
-
 function rr(ctx,x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
@@ -158,15 +139,12 @@ function rr(ctx,x,y,w,h,r){
   ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();ctx.fill();
 }
-
 function buildCyl(){
-  if(cyl){ [cyl,capT,capB].forEach(function(m){scene.remove(m);m.geometry.dispose();m.material.dispose();}); }
+  if(cyl){[cyl,capT,capB].forEach(function(m){scene.remove(m);m.geometry.dispose();m.material.dispose();});}
   var R=0.28,H=0.55;
-  cyl=new THREE.Mesh(
-    new THREE.CylinderGeometry(R,R,H,128,1,true),
+  cyl=new THREE.Mesh(new THREE.CylinderGeometry(R,R,H,128,1,true),
     new THREE.MeshStandardMaterial({color:0x1a1000,roughness:0.9,metalness:0.05,
-      alphaMap:makeAlpha(),alphaTest:0.5,side:THREE.DoubleSide,transparent:true})
-  );
+      alphaMap:makeAlpha(),alphaTest:0.5,side:THREE.DoubleSide,transparent:true}));
   cyl.position.set(CX,CY,CZ); scene.add(cyl);
   var cm=new THREE.MeshStandardMaterial({color:0x0a0800,roughness:1});
   capT=new THREE.Mesh(new THREE.CircleGeometry(R,64),cm);
@@ -174,7 +152,6 @@ function buildCyl(){
   capB=new THREE.Mesh(new THREE.CircleGeometry(R,64),cm.clone());
   capB.rotation.x=Math.PI/2; capB.position.set(CX,CY-H/2,CZ); scene.add(capB);
 }
-
 function buildGlow(){
   bulb=new THREE.Mesh(new THREE.SphereGeometry(0.05,16,16),
     new THREE.MeshBasicMaterial({color:0xfff8e0}));
@@ -183,272 +160,180 @@ function buildGlow(){
     new THREE.MeshBasicMaterial({color:0xffcc66,transparent:true,opacity:0.12,side:THREE.BackSide}));
   glowMesh.position.set(CX,CY,CZ); scene.add(glowMesh);
 }
-
 buildCyl();
 buildGlow();
 
-// ─────────────────────────────────────────────────────────
-// IN-VR FLOATING CONTROL PANEL
-// A flat canvas texture on a plane mesh, always facing user
-// ─────────────────────────────────────────────────────────
-
+// In-VR floating panel
 var panel, panelCanvas, panelCtx, panelTex;
-var PANEL_W = 512, PANEL_H = 320;
-
-// Buttons defined in panel-canvas space for hit-testing
-var BTNS = [
-  // Brainwave state buttons
-  { id:'delta',  label:'Delta',  hz:2,  x:20,  y:60,  w:108, h:52 },
-  { id:'theta',  label:'Theta',  hz:6,  x:136, y:60,  w:108, h:52 },
-  { id:'alpha',  label:'Alpha',  hz:10, x:252, y:60,  w:108, h:52 },
-  { id:'beta',   label:'Beta',   hz:20, x:368, y:60,  w:108, h:52 },
-  // Hz nudge
-  { id:'hzdown', label:'Hz  −',  x:20,  y:150, w:100, h:44 },
-  { id:'hzup',   label:'Hz  +',  x:130, y:150, w:100, h:44 },
-  // Pattern buttons
-  { id:'slits',   label:'Classic', x:20,  y:230, w:148, h:44 },
-  { id:'wide',    label:'Wide',    x:176, y:230, w:148, h:44 },
-  { id:'diamond', label:'Diamond', x:332, y:230, w:148, h:44 },
+var PW=512, PH=300;
+var BTNS=[
+  {id:'delta', label:'Delta',  sub:'1–4 Hz',  hz:2,  x:16, y:56, w:108,h:56},
+  {id:'theta', label:'Theta',  sub:'4–8 Hz',  hz:6,  x:132,y:56, w:108,h:56},
+  {id:'alpha', label:'Alpha',  sub:'8–13 Hz', hz:10, x:248,y:56, w:108,h:56},
+  {id:'beta',  label:'Beta',   sub:'13–30 Hz',hz:20, x:364,y:56, w:108,h:56},
+  {id:'hzdown',label:'−  Hz',  x:16, y:142,w:108,h:48},
+  {id:'hzup',  label:'+  Hz',  x:132,y:142,w:108,h:48},
+  {id:'slits',  label:'Classic slits', x:16, y:222,w:150,h:48},
+  {id:'wide',   label:'Wide slits',    x:174,y:222,w:150,h:48},
+  {id:'diamond',label:'Diamond cuts',  x:332,y:222,w:164,h:48},
 ];
 
 function drawPanel(){
-  var ctx = panelCtx;
-  ctx.clearRect(0,0,PANEL_W,PANEL_H);
+  var ctx=panelCtx;
+  ctx.clearRect(0,0,PW,PH);
+  ctx.fillStyle='rgba(5,4,2,0.94)'; ctx.fillRect(0,0,PW,PH);
+  ctx.strokeStyle='#3a2e1a'; ctx.lineWidth=1;
+  ctx.strokeRect(1,1,PW-2,PH-2);
 
-  // Background
-  ctx.fillStyle = 'rgba(4,3,2,0.92)';
-  ctx.fillRect(0,0,PANEL_W,PANEL_H);
-  ctx.strokeStyle = '#3a2e1a';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(1,1,PANEL_W-2,PANEL_H-2);
+  // Header
+  ctx.fillStyle='#c8a060';
+  ctx.font='500 14px Cinzel,serif';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('DREAMACHINE', 16, 28);
+  ctx.fillStyle='#666';
+  ctx.font='11px Lato,sans-serif';
+  ctx.textAlign='right';
+  ctx.fillText(skey().toUpperCase()+'  ·  '+hz.toFixed(1)+' Hz', PW-16, 28);
 
-  // Title row
-  ctx.fillStyle = '#c8a060';
-  ctx.font = '500 13px Cinzel, serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('DREAMACHINE', 20, 32);
-  ctx.fillStyle = '#555';
-  ctx.font = '400 11px Lato, sans-serif';
-  ctx.fillText('Hz: ' + hz.toFixed(1) + '  ·  ' + skey().toUpperCase(), 200, 32);
-  ctx.fillStyle = '#c8a060';
-  ctx.font = '11px Cinzel, serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('close eyes for visions', PANEL_W-20, 32);
+  ctx.strokeStyle='#2a2010'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(16,44); ctx.lineTo(PW-16,44); ctx.stroke();
 
-  // Divider
-  ctx.strokeStyle = '#2a2010';
-  ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.moveTo(20,42); ctx.lineTo(PANEL_W-20,42); ctx.stroke();
-
-  // Draw all buttons
   BTNS.forEach(function(b){
-    var active = false;
-    if (b.hz !== undefined) active = (Math.abs(hz - b.hz) < 0.1);
-    if (b.id === pat) active = true;
-
-    ctx.fillStyle   = active ? '#c8a060' : '#0d0b07';
-    ctx.strokeStyle = active ? '#c8a060' : '#3a2e1a';
-    ctx.lineWidth   = active ? 1 : 0.5;
-    roundRect(ctx, b.x, b.y, b.w, b.h, 4);
+    var active=(b.hz!==undefined && Math.abs(hz-b.hz)<0.1) || b.id===pat;
+    ctx.fillStyle=active?'#c8a060':'#0d0b07';
+    ctx.strokeStyle=active?'#c8a060':'#2a2010';
+    ctx.lineWidth=active?1:0.5;
+    rrPanel(ctx,b.x,b.y,b.w,b.h,4);
     ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle  = active ? '#000' : '#888';
-    ctx.font       = '500 12px Cinzel, serif';
-    ctx.textAlign  = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(b.label, b.x + b.w/2, b.y + b.h/2);
-
-    if (b.id === 'theta' || b.id === 'alpha' || b.id === 'delta' || b.id === 'beta') {
-      var hzlabel = b.id==='delta'?'1–4':b.id==='theta'?'4–8':b.id==='alpha'?'8–13':'13–30';
-      ctx.fillStyle = active ? '#333' : '#444';
-      ctx.font = '9px Lato, sans-serif';
-      ctx.fillText(hzlabel + ' Hz', b.x + b.w/2, b.y + b.h/2 + 14);
+    ctx.fillStyle=active?'#000':'#999';
+    ctx.font='500 12px Cinzel,serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(b.label, b.x+b.w/2, b.sub ? b.y+b.h/2-7 : b.y+b.h/2);
+    if(b.sub){
+      ctx.fillStyle=active?'#444':'#555';
+      ctx.font='10px Lato,sans-serif';
+      ctx.fillText(b.sub, b.x+b.w/2, b.y+b.h/2+9);
     }
   });
-
-  panelTex.needsUpdate = true;
+  panelTex.needsUpdate=true;
 }
-
-function roundRect(ctx,x,y,w,h,r){
+function rrPanel(ctx,x,y,w,h,r){
   ctx.beginPath();
-  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();
 }
-
 function buildPanel(){
-  panelCanvas = document.createElement('canvas');
-  panelCanvas.width = PANEL_W; panelCanvas.height = PANEL_H;
-  panelCtx = panelCanvas.getContext('2d');
-  panelTex = new THREE.CanvasTexture(panelCanvas);
-
-  var pw = 0.9, ph = pw * (PANEL_H/PANEL_W);
-  panel = new THREE.Mesh(
-    new THREE.PlaneGeometry(pw, ph),
-    new THREE.MeshBasicMaterial({ map:panelTex, transparent:true, side:THREE.FrontSide })
-  );
-  // Position panel: below the cylinder, slightly closer to user
-  panel.position.set(0, 0.85, -0.95);
+  panelCanvas=document.createElement('canvas');
+  panelCanvas.width=PW; panelCanvas.height=PH;
+  panelCtx=panelCanvas.getContext('2d');
+  panelTex=new THREE.CanvasTexture(panelCanvas);
+  var pw=0.85, ph=pw*(PH/PW);
+  panel=new THREE.Mesh(new THREE.PlaneGeometry(pw,ph),
+    new THREE.MeshBasicMaterial({map:panelTex,transparent:true,depthTest:false}));
+  panel.position.set(0,0.9,-1.0);
   scene.add(panel);
   drawPanel();
 }
-
 buildPanel();
 
-// ─────────────────────────────────────────────────────────
-// CONTROLLER RAY CASTING — Quest controller A/trigger = click
-// ─────────────────────────────────────────────────────────
-
-var controllers = [];
-var raycaster   = new THREE.Raycaster();
-
+// Controllers
+var raycaster=new THREE.Raycaster();
 function setupControllers(){
   [0,1].forEach(function(i){
-    var c = renderer.xr.getController(i);
-    c.addEventListener('selectstart', onSelect);
-    scene.add(c);
-
-    // Visible ray line
-    var ray = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.002,0.002,2,8),
-      new THREE.MeshBasicMaterial({color:0xc8a060,transparent:true,opacity:0.35})
-    );
-    ray.rotation.x = -Math.PI/2;
-    ray.position.z = -1;
+    var c=renderer.xr.getController(i);
+    c.addEventListener('selectstart',function(){
+      var tm=new THREE.Matrix4();
+      tm.identity().extractRotation(c.matrixWorld);
+      raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);
+      raycaster.ray.direction.set(0,0,-1).applyMatrix4(tm);
+      var hits=raycaster.intersectObject(panel);
+      if(!hits.length) return;
+      var uv=hits[0].uv;
+      var px=uv.x*PW, py=(1-uv.y)*PH;
+      BTNS.forEach(function(b){
+        if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) handleBtn(b.id);
+      });
+    });
+    // Pointer ray
+    var ray=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.002,0.002,2,6),
+      new THREE.MeshBasicMaterial({color:0xc8a060,transparent:true,opacity:0.4}));
+    ray.rotation.x=-Math.PI/2; ray.position.z=-1;
     c.add(ray);
-    controllers.push(c);
+    scene.add(c);
   });
 }
-
-function onSelect(evt){
-  var controller = evt.target;
-  // Build ray from controller
-  var tempMatrix = new THREE.Matrix4();
-  tempMatrix.identity().extractRotation(controller.matrixWorld);
-  raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-  raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
-
-  var hits = raycaster.intersectObject(panel);
-  if (hits.length === 0) return;
-
-  var uv = hits[0].uv;
-  var px = uv.x * PANEL_W;
-  var py = (1 - uv.y) * PANEL_H;
-
-  BTNS.forEach(function(b){
-    if (px>=b.x && px<=b.x+b.w && py>=b.y && py<=b.y+b.h){
-      handleBtn(b.id);
-    }
-  });
-}
-
 function handleBtn(id){
-  if      (id==='delta')  { hz=2;  }
-  else if (id==='theta')  { hz=6;  }
-  else if (id==='alpha')  { hz=10; }
-  else if (id==='beta')   { hz=20; }
-  else if (id==='hzdown') { hz=Math.max(1,  parseFloat((hz-0.5).toFixed(1))); }
-  else if (id==='hzup')   { hz=Math.min(30, parseFloat((hz+0.5).toFixed(1))); }
-  else if (id==='slits' || id==='wide' || id==='diamond') { pat=id; buildCyl(); }
+  if(id==='delta') hz=2;
+  else if(id==='theta') hz=6;
+  else if(id==='alpha') hz=10;
+  else if(id==='beta')  hz=20;
+  else if(id==='hzdown') hz=Math.max(1,  Math.round((hz-0.5)*10)/10);
+  else if(id==='hzup')   hz=Math.min(30, Math.round((hz+0.5)*10)/10);
+  else if(['slits','wide','diamond'].indexOf(id)>=0){ pat=id; buildCyl(); }
   drawPanel();
 }
 
-// ─────────────────────────────────────────────────────────
-// ANIMATION LOOP
-// ─────────────────────────────────────────────────────────
-
+// Render loop
 renderer.setAnimationLoop(function(){
-  var dt = Math.min(clock.getDelta(), 0.05);
-  angle += dt * hz * Math.PI * 2;
-  if (cyl) cyl.rotation.y = angle;
-
-  var f = 0.5 + 0.5*Math.sin(angle);
-  fLight.intensity = 8 + 20*f;
+  var dt=Math.min(clock.getDelta(),0.05);
+  angle+=dt*hz*Math.PI*2;
+  if(cyl) cyl.rotation.y=angle;
+  var f=0.5+0.5*Math.sin(angle);
+  fLight.intensity=8+20*f;
   fLight.color.setHex(LCOLORS[skey()]);
-  if (bulb)     { var b=0.6+0.4*f; bulb.material.color.setRGB(b,b*0.97,b*0.84); }
-  if (glowMesh) glowMesh.material.opacity = 0.05+0.22*f;
-
-  // Panel always faces the camera/headset
-  if (panel && camera) {
-    panel.lookAt(camera.position);
-  }
-
-  renderer.render(scene, camera);
+  if(bulb){var b=0.6+0.4*f; bulb.material.color.setRGB(b,b*0.97,b*0.84);}
+  if(glowMesh) glowMesh.material.opacity=0.05+0.22*f;
+  if(panel) panel.lookAt(camera.position);
+  renderer.render(scene,camera);
 });
 
-window.addEventListener('resize', function(){
-  camera.aspect = innerWidth/innerHeight;
+window.addEventListener('resize',function(){
+  camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
 });
 
+// ── THE ONLY VR ENTRY POINT ───────────────────────────────
+// No detection. No gating. Just try. Quest requires this to be
+// called directly from a user gesture (onclick).
 // ─────────────────────────────────────────────────────────
-// VR ENTRY — triggered directly from the warning page button
-// This is a user-gesture handler, which Quest requires
-// ─────────────────────────────────────────────────────────
-
-var vstatus = document.getElementById('vstatus');
-var errmsg  = document.getElementById('errmsg');
-var enterbtn = document.getElementById('enterbtn');
-
-if (!navigator.xr) {
-  vstatus.textContent = 'WebXR not available — use Meta Browser on Quest';
-  vstatus.style.color = '#c84444';
-  enterbtn.disabled = false;
-  enterbtn.textContent = 'Preview in Browser';
-} else {
-  navigator.xr.isSessionSupported('immersive-vr').then(function(ok){
-    enterbtn.disabled = false;
-    if (ok) {
-      vstatus.textContent = '✦ VR headset detected — tap to enter';
-      vstatus.style.color = '#88cc88';
-    } else {
-      vstatus.textContent = 'No headset detected — will open 3D browser preview';
-      vstatus.style.color = '#666';
-    }
-  }).catch(function(){
-    enterbtn.disabled = false;
-    vstatus.textContent = '';
-  });
-}
-
 function enterVR(){
-  errmsg.textContent = '';
+  var msg=document.getElementById('msg');
 
-  // No WebXR at all — just hide the page and show the canvas preview
-  if (!navigator.xr) {
-    hidePage(); return;
+  // No WebXR API at all — just show the canvas preview
+  if(!navigator.xr){
+    msg.textContent='WebXR not available. Use Meta Browser on Quest.';
+    msg.style.color='#c84444';
+    document.getElementById('page').style.display='none';
+    return;
   }
 
-  navigator.xr.isSessionSupported('immersive-vr').then(function(ok){
-    if (!ok) { hidePage(); return; }
+  msg.textContent='Starting VR…';
+  msg.style.color='#c8a060';
 
-    // Request the XR session — MUST be inside a user-gesture handler
-    return navigator.xr.requestSession('immersive-vr', {
-      requiredFeatures: ['local-floor'],
-      optionalFeatures: ['bounded-floor','hand-tracking']
-    });
+  navigator.xr.requestSession('immersive-vr',{
+    requiredFeatures:['local-floor'],
+    optionalFeatures:['bounded-floor','hand-tracking']
   }).then(function(session){
-    if (!session) return;
-    // Set reference space AFTER session is granted
     renderer.xr.setReferenceSpaceType('local-floor');
     return renderer.xr.setSession(session).then(function(){
       setupControllers();
-      hidePage();
-      session.addEventListener('end', function(){
-        document.getElementById('page').style.display = 'flex';
+      document.getElementById('page').style.display='none';
+      session.addEventListener('end',function(){
+        document.getElementById('page').style.display='flex';
+        msg.textContent='Put on your headset and tap the button below.';
+        msg.style.color='#888';
       });
     });
   }).catch(function(e){
-    errmsg.textContent = 'Could not start VR: ' + e.message;
-    console.error(e);
+    msg.textContent='Error: '+e.message;
+    msg.style.color='#c84444';
+    console.error('XR error',e);
   });
-}
-
-function hidePage(){
-  document.getElementById('page').style.display = 'none';
 }
 </script>
 </body>
