@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dreamachine — After Brion Gysin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Lato', sans-serif; }
+
+canvas { display: block; }
+
+/* ── WARNING SCREEN ── */
+#warn {
+  position: fixed; inset: 0; background: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 24px; z-index: 100; padding: 2.5rem; text-align: center;
+}
+#warn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, #1a0a00 0%, #000 70%);
+  pointer-events: none;
+}
+#warn > * { position: relative; z-index: 1; }
+.warn-glyph { font-size: 48px; animation: breathe 4s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)} }
+#warn h1 { font-family:'Cinzel',serif; font-size:13px; font-weight:400; letter-spacing:0.35em; color:#c84444; text-transform:uppercase; }
+.warn-title { font-family:'Cinzel',serif; font-size:30px; font-weight:500; color:#f0e0c0; letter-spacing:0.12em; }
+.warn-sub { font-size:11px; letter-spacing:0.25em; color:#664422; text-transform:uppercase; margin-top:4px; }
+.warn-body { font-size:14px; color:#888; max-width:480px; line-height:1.8; font-weight:300; }
+.warn-body strong { color:#bbb; font-weight:400; }
+.warn-note { font-size:13px; color:#b08040; max-width:440px; line-height:1.7; font-style:italic; }
+.divider { width:120px; height:0.5px; background:#333; }
+.enter-btn {
+  font-family:'Cinzel',serif; background:transparent;
+  border:0.5px solid #c8a060; color:#c8a060;
+  padding:14px 44px; font-size:12px; letter-spacing:0.3em;
+  text-transform:uppercase; cursor:pointer;
+  transition:background 0.3s, color 0.3s; margin-top:8px;
+}
+.enter-btn:hover { background:#c8a060; color:#000; }
+.enter-btn:disabled { opacity:0.3; cursor:not-allowed; }
+.warn-small { font-size:11px; color:#444; letter-spacing:0.1em; }
+#vr-status { font-size:12px; color:#c8a060; letter-spacing:0.1em; min-height:18px; }
+
+/* ── HUD overlay (shown outside VR) ── */
+#hud {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(5,5,5,0.92);
+  border-top: 0.5px solid #1a1a1a;
+  padding: 10px 24px;
+  gap: 20px; align-items: center; flex-wrap: wrap;
+  z-index: 50;
+}
+#hud.visible { display: flex; }
+.ctrl-label { font-size:10px; letter-spacing:0.2em; color:#444; text-transform:uppercase; font-family:'Cinzel',serif; }
+.ctrl-value { font-size:13px; color:#c8a060; font-weight:300; min-width:110px; }
+input[type=range] {
+  width:140px; -webkit-appearance:none; background:transparent; cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track { height:1px; background:#333; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:14px; height:14px;
+  border-radius:50%; background:#c8a060; margin-top:-6.5px;
+}
+select {
+  background:#0a0a0a; color:#888; border:0.5px solid #2a2a2a;
+  padding:5px 10px; border-radius:4px; font-size:12px; font-family:'Lato',sans-serif;
+}
+.state-pill {
+  font-family:'Cinzel',serif; font-size:10px; letter-spacing:0.2em;
+  padding:4px 12px; border-radius:3px; border:0.5px solid currentColor;
+  transition:color 0.5s, border-color 0.5s, background 0.5s;
+}
+.ctrl-btn {
+  font-family:'Cinzel',serif; background:transparent; border:0.5px solid #333;
+  color:#888; padding:6px 18px; font-size:10px; letter-spacing:0.2em;
+  text-transform:uppercase; cursor:pointer;
+}
+.ctrl-btn:hover { border-color:#888; color:#ccc; }
+#enter-vr-btn {
+  margin-left: auto;
+  font-family:'Cinzel',serif; background:transparent;
+  border:0.5px solid #c8a060; color:#c8a060;
+  padding:8px 24px; font-size:11px; letter-spacing:0.25em;
+  text-transform:uppercase; cursor:pointer;
+  transition:background 0.3s, color 0.3s;
+}
+#enter-vr-btn:hover { background:#c8a060; color:#000; }
+#enter-vr-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+#eyes-msg {
+  display:none; position:fixed; top:0; left:0; right:0;
+  text-align:center; padding:14px;
+  font-family:'Cinzel',serif; font-size:11px; letter-spacing:0.3em;
+  color:rgba(200,160,96,0.6); z-index:10; pointer-events:none;
+  text-transform:uppercase; animation:pulse 4s ease-in-out infinite;
+}
+#eyes-msg.visible { display:block; }
+@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.9} }
+</style>
+</head>
+<body>
+
+<!-- WARNING SCREEN -->
+<div id="warn">
+  <div class="warn-glyph">☀</div>
+  <h1>⚠ &nbsp; Photosensitive Epilepsy Warning &nbsp; ⚠</h1>
+  <div>
+    <div class="warn-title">Dreamachine</div>
+    <div class="warn-sub">After Brion Gysin &amp; William S. Burroughs, 1961</div>
+  </div>
+  <div class="divider"></div>
+  <p class="warn-body">
+    This experience produces <strong>rapid rhythmic flickering light</strong> at frequencies between 1 and 30 Hz. It is designed to fill your field of vision and induce hypnagogic imagery through brainwave entrainment. This can trigger seizures in people with <strong>photosensitive epilepsy</strong>. Do not use if you are prone to seizures or sensitive to flashing lights. <strong>Stop immediately</strong> if you feel discomfort, nausea, or dizziness.
+  </p>
+  <p class="warn-note">
+    Sit or stand comfortably. The machine will appear before you in the dark. Close your eyes — the light passes through your eyelids and the visions are your own.
+  </p>
+  <div class="divider"></div>
+  <div id="vr-status">Checking for VR support…</div>
+  <button class="enter-btn" id="enter-btn" disabled onclick="enterScene()">Enter the Dreamachine</button>
+  <p class="warn-small">WebXR · Meta Quest 2 / 3 · Open in Meta Browser for full VR immersion</p>
+</div>
+
+<!-- Eyes closed reminder -->
+<div id="eyes-msg">✦ &nbsp; close your eyes and let the light find you &nbsp; ✦</div>
+
+<!-- HUD controls -->
+<div id="hud">
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="ctrl-label">State</span>
+    <input type="range" id="hzSlider" min="1" max="30" step="0.5" value="6">
+    <span class="ctrl-value" id="stateLabel">Theta — 6 Hz</span>
+    <span class="state-pill" id="statePill" style="color:#c8a060;border-color:#c8a060;background:rgba(200,160,96,0.1)">THETA</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="ctrl-label">Pattern</span>
+    <select id="pat">
+      <option value="slits">Classic slits</option>
+      <option value="wide">Wide slits</option>
+      <option value="diamond">Diamond cuts</option>
+    </select>
+  </div>
+  <button class="ctrl-btn" id="pauseBtn" onclick="togglePause()">Pause</button>
+  <button id="enter-vr-btn" onclick="enterVR()">Enter VR ↗</button>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+// ── State ──────────────────────────────────────────────
+let hz = 6;
+let paused = false;
+let patternType = 'slits';
+let cylinderMesh = null;
+let lightCore = null;
+let glowMesh = null;
+let scene, camera, renderer, clock;
+let flickerLight, ambientLight;
+
+const states = [
+  { name:'DELTA', label:'Delta', min:1,  max:4,  color:'#6688cc', lightColor:0x4466bb },
+  { name:'THETA', label:'Theta', min:4,  max:8,  color:'#c8a060', lightColor:0xffaa44 },
+  { name:'ALPHA', label:'Alpha', min:8,  max:13, color:'#88cc99', lightColor:0x88ffaa },
+  { name:'BETA',  label:'Beta',  min:13, max:31, color:'#cc8877', lightColor:0xff8866 },
+];
+
+function getState(h) {
+  return states.find(s => h >= s.min && h < s.max) || states[3];
+}
+
+// ── VR Check ───────────────────────────────────────────
+const statusEl = document.getElementById('vr-status');
+const enterBtn = document.getElementById('enter-btn');
+
+if (navigator.xr) {
+  navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+    if (supported) {
+      statusEl.textContent = '✦ VR headset detected — full immersive mode available';
+      statusEl.style.color = '#88cc88';
+    } else {
+      statusEl.textContent = 'VR not detected — will run in desktop preview mode';
+      statusEl.style.color = '#888';
+    }
+    enterBtn.disabled = false;
+  });
+} else {
+  statusEl.textContent = 'WebXR not supported in this browser — use Meta Browser on Quest';
+  statusEl.style.color = '#cc6666';
+  enterBtn.disabled = false;
+}
+
+// ── Build Scene ────────────────────────────────────────
+function buildScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
+  clock = new THREE.Clock();
+
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 100);
+  camera.position.set(0, 1.6, 0); // standing eye height
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  // Inject the VR button (hidden — we use our own)
+  const vrBtn = VRButton.createButton(renderer);
+  vrBtn.style.display = 'none';
+  document.body.appendChild(vrBtn);
+
+  // Floor — dark wood, barely visible
+  const floorGeo = new THREE.CircleGeometry(6, 64);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x080604, roughness: 1 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0;
+  scene.add(floor);
+
+  // Ambient — very dim
+  ambientLight = new THREE.AmbientLight(0x111008, 0.4);
+  scene.add(ambientLight);
+
+  // The light inside the cylinder
+  flickerLight = new THREE.PointLight(0xffaa44, 8, 3.5);
+  flickerLight.position.set(0, 1.6, -1.4); // same height as eyes, 1.4m in front
+  scene.add(flickerLight);
+
+  // Soft fill so the cylinder body is just barely visible
+  const fillLight = new THREE.PointLight(0x331100, 2, 5);
+  fillLight.position.set(0, 2.5, -1.4);
+  scene.add(fillLight);
+
+  buildCylinder();
+  buildGlow();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  renderer.setAnimationLoop(animate);
+}
+
+// ── Cylinder with cut slits ────────────────────────────
+function buildCylinder() {
+  if (cylinderMesh) {
+    scene.remove(cylinderMesh);
+    cylinderMesh.geometry.dispose();
+    cylinderMesh.material.dispose();
+  }
+
+  const radius = 0.28;
+  const height = 0.55;
+  const radialSegs = 128;
+  const slitCount = patternType === 'diamond' ? 10 : 10;
+  const slitWidthFraction = patternType === 'wide' ? 0.38 : 0.22;
+  const slitHeightFraction = patternType === 'diamond' ? 0.35 : 0.72;
+
+  // Build cylinder using a custom geometry with holes (alpha map)
+  // We use a canvas texture to paint the slit pattern
+  const texSize = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = texSize;
+  canvas.height = texSize;
+  const ctx = canvas.getContext('2d');
+
+  // Fill black (opaque cylinder wall)
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, texSize, texSize);
+
+  // Cut slits as white (transparent in alphaMap)
+  ctx.fillStyle = '#fff';
+  if (patternType === 'diamond') {
+    // Diamond cut-outs
+    for (let i = 0; i < slitCount; i++) {
+      const cx = (i / slitCount + 1 / (slitCount * 2)) * texSize;
+      const cy = texSize / 2;
+      const w = texSize / slitCount * slitWidthFraction;
+      const h = texSize * slitHeightFraction;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-w/2, -h/2, w, h);
+      ctx.restore();
+    }
+    // Second row offset
+    for (let i = 0; i < slitCount; i++) {
+      const cx = (i / slitCount) * texSize;
+      const cy = texSize * 0.2;
+      const w = texSize / slitCount * slitWidthFraction * 0.6;
+      const h = texSize * slitHeightFraction * 0.4;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-w/2, -h/2, w, h);
+      ctx.restore();
+      // mirror bottom
+      ctx.save();
+      ctx.translate(cx, texSize * 0.8);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-w/2, -h/2, w, h);
+      ctx.restore();
+    }
+  } else {
+    // Classic vertical slits
+    for (let i = 0; i < slitCount; i++) {
+      const x = (i / slitCount) * texSize;
+      const slitW = (texSize / slitCount) * slitWidthFraction;
+      const slitH = texSize * slitHeightFraction;
+      const slitY = (texSize - slitH) / 2;
+      const rounding = slitW * 0.4;
+      roundRect(ctx, x + (texSize/slitCount - slitW)/2, slitY, slitW, slitH, rounding);
+    }
+  }
+
+  const alphaTexture = new THREE.CanvasTexture(canvas);
+
+  const geo = new THREE.CylinderGeometry(radius, radius, height, radialSegs, 1, true);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x1a1000,
+    roughness: 0.9,
+    metalness: 0.1,
+    alphaMap: alphaTexture,
+    alphaTest: 0.5,
+    side: THREE.DoubleSide,
+    transparent: true,
+  });
+
+  cylinderMesh = new THREE.Mesh(geo, mat);
+  cylinderMesh.position.set(0, 1.6, -1.4); // arm's length in front, eye height
+  cylinderMesh.castShadow = false;
+  scene.add(cylinderMesh);
+
+  // Cylinder top and bottom caps (solid)
+  const capGeo = new THREE.CircleGeometry(radius, 64);
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x0a0800, roughness: 1 });
+  const topCap = new THREE.Mesh(capGeo, capMat);
+  topCap.rotation.x = -Math.PI / 2;
+  topCap.position.set(0, 1.6 + height/2, -1.4);
+  scene.add(topCap);
+  const bottomCap = new THREE.Mesh(capGeo, capMat);
+  bottomCap.rotation.x = Math.PI / 2;
+  bottomCap.position.set(0, 1.6 - height/2, -1.4);
+  scene.add(bottomCap);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ── Glow — the visible light source inside ────────────
+function buildGlow() {
+  // Inner light bulb visible through slits
+  const bulbGeo = new THREE.SphereGeometry(0.045, 16, 16);
+  const bulbMat = new THREE.MeshBasicMaterial({ color: 0xfff5cc });
+  lightCore = new THREE.Mesh(bulbGeo, bulbMat);
+  lightCore.position.set(0, 1.6, -1.4);
+  scene.add(lightCore);
+
+  // Soft glow halo
+  const glowGeo = new THREE.SphereGeometry(0.12, 16, 16);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xffcc66, transparent: true, opacity: 0.18, side: THREE.BackSide
+  });
+  glowMesh = new THREE.Mesh(glowGeo, glowMat);
+  glowMesh.position.set(0, 1.6, -1.4);
+  scene.add(glowMesh);
+}
+
+// ── Animation loop ─────────────────────────────────────
+let angle = 0;
+let flickerPhase = 0;
+
+function animate() {
+  if (paused) return;
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  angle += dt * hz * Math.PI * 2;
+  flickerPhase += dt * hz * Math.PI * 2;
+
+  // Rotate the cylinder
+  if (cylinderMesh) {
+    cylinderMesh.rotation.y = angle;
+  }
+
+  // Flicker the light — the slits rotating past the light create the strobe
+  // We pulse the light intensity in sync with rotation
+  const st = getState(hz);
+  const flicker = 0.5 + 0.5 * Math.sin(flickerPhase);
+  const intensity = 6 + 10 * flicker;
+  flickerLight.intensity = intensity;
+  flickerLight.color.setHex(st.lightColor);
+
+  // Bulb brightness matches
+  if (lightCore) {
+    const b = 0.7 + 0.3 * flicker;
+    lightCore.material.color.setRGB(b, b * 0.95, b * 0.8);
+  }
+  if (glowMesh) {
+    glowMesh.material.opacity = 0.1 + 0.15 * flicker;
+  }
+}
+
+// ── Controls ───────────────────────────────────────────
+document.getElementById('hzSlider').addEventListener('input', function() {
+  hz = parseFloat(this.value);
+  const st = getState(hz);
+  document.getElementById('stateLabel').textContent = `${st.label} — ${hz} Hz`;
+  const pill = document.getElementById('statePill');
+  pill.textContent = st.name;
+  pill.style.color = st.color;
+  pill.style.borderColor = st.color;
+  pill.style.background = st.color + '18';
+});
+
+document.getElementById('pat').addEventListener('change', function() {
+  patternType = this.value;
+  buildCylinder();
+});
+
+window.togglePause = function() {
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+  if (!paused) clock.getDelta(); // reset delta after pause
+};
+
+window.enterVR = function() {
+  renderer.xr.getSession()?.end();
+  const vrBtn = document.querySelector('button[style*="display: none"]') ||
+                document.querySelector('#VRButton');
+  // Trigger the hidden VRButton
+  document.querySelectorAll('button').forEach(b => {
+    if (b.textContent.includes('ENTER VR') || b.textContent.includes('Enter VR')) b.click();
+  });
+  // Fallback: direct session request
+  if (navigator.xr) {
+    navigator.xr.requestSession('immersive-vr', {
+      optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+    }).then(session => {
+      renderer.xr.setSession(session);
+    }).catch(err => {
+      alert('Could not start VR session: ' + err.message);
+    });
+  }
+};
+
+// ── Entry ──────────────────────────────────────────────
+window.enterScene = function() {
+  document.getElementById('warn').style.display = 'none';
+  document.getElementById('hud').classList.add('visible');
+  document.getElementById('eyes-msg').classList.add('visible');
+  buildScene();
+};
+</script>
+</body>
+</html>
