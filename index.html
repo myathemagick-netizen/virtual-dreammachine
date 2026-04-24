@@ -6,23 +6,23 @@
 <title>Dreamachine — After Brion Gysin</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Lato:wght@300;400&display=swap" rel="stylesheet">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Lato', sans-serif; }
-canvas { display: block; position: fixed; inset: 0; z-index: 0; }
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { width:100%; height:100%; background:#000; overflow:hidden; font-family:'Lato',sans-serif; }
+canvas { display:block; position:fixed; inset:0; z-index:0; }
 
 /* ── WARNING SCREEN ── */
 #warn {
-  position: fixed; inset: 0; background: #000;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 22px; z-index: 200; padding: 2.5rem; text-align: center;
+  position:fixed; inset:0; background:#000;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:20px; z-index:200; padding:2.5rem; text-align:center;
 }
 #warn::before {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(ellipse at center, #1a0a00 0%, #000 70%);
-  pointer-events: none;
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse at center,#1a0a00 0%,#000 70%);
+  pointer-events:none;
 }
-#warn > * { position: relative; z-index: 1; }
-.warn-glyph { font-size: 48px; animation: breathe 4s ease-in-out infinite; }
+#warn > * { position:relative; z-index:1; }
+.warn-glyph { font-size:48px; animation:breathe 4s ease-in-out infinite; }
 @keyframes breathe { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)} }
 #warn h1 { font-family:'Cinzel',serif; font-size:12px; font-weight:400; letter-spacing:0.35em; color:#c84444; text-transform:uppercase; }
 .warn-title { font-family:'Cinzel',serif; font-size:28px; font-weight:500; color:#f0e0c0; letter-spacing:0.12em; }
@@ -37,24 +37,24 @@ canvas { display: block; position: fixed; inset: 0; z-index: 0; }
   border:0.5px solid #c8a060; color:#c8a060;
   padding:14px 44px; font-size:12px; letter-spacing:0.3em;
   text-transform:uppercase; cursor:pointer;
-  transition:background 0.3s, color 0.3s; margin-top:4px;
+  transition:background 0.3s, color 0.3s;
 }
 .enter-btn:hover { background:#c8a060; color:#000; }
 .warn-small { font-size:11px; color:#3a3a3a; letter-spacing:0.08em; }
 
 /* ── SETTINGS SCREEN ── */
 #settings {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.96);
-  flex-direction: column; align-items: center; justify-content: center;
-  gap: 28px; z-index: 150; padding: 2rem; text-align: center;
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.97);
+  flex-direction:column; align-items:center; justify-content:center;
+  gap:24px; z-index:150; padding:2rem; text-align:center;
 }
-#settings.visible { display: flex; }
+#settings.visible { display:flex; }
 .settings-title { font-family:'Cinzel',serif; font-size:12px; letter-spacing:0.3em; color:#5a4a30; text-transform:uppercase; }
 
 .state-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; width:100%; max-width:420px; }
 .state-card {
   border:0.5px solid #222; padding:16px 14px; cursor:pointer;
-  transition:border-color 0.2s, background 0.2s; text-align:left;
+  transition:border-color 0.2s,background 0.2s; text-align:left;
 }
 .state-card:hover { border-color:#444; background:#080808; }
 .state-card.selected { border-color:#c8a060; background:#0c0800; }
@@ -88,7 +88,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; h
   cursor:pointer; width:100%; max-width:420px; transition:opacity 0.2s;
 }
 .enter-vr-btn:hover { opacity:0.85; }
-.enter-vr-btn:disabled { opacity:0.3; cursor:not-allowed; background:#444; color:#888; }
 
 /* ── Eyes reminder ── */
 #eyes-msg {
@@ -128,22 +127,22 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; h
   <div class="settings-title">Choose your state before entering</div>
 
   <div class="state-grid">
-    <div class="state-card" data-hz="2" onclick="selectState(this,'delta')">
+    <div class="state-card" data-hz="2" onclick="selectState(this)">
       <div class="state-name">Delta</div>
       <div class="state-hz">1 – 4 Hz</div>
       <div class="state-desc">Deep and oceanic. The edge of dreamless sleep.</div>
     </div>
-    <div class="state-card selected" data-hz="6" onclick="selectState(this,'theta')">
+    <div class="state-card selected" data-hz="6" onclick="selectState(this)">
       <div class="state-name">Theta</div>
       <div class="state-hz">4 – 8 Hz</div>
       <div class="state-desc">Hypnagogic. The richest vision state. Gysin's threshold.</div>
     </div>
-    <div class="state-card" data-hz="10" onclick="selectState(this,'alpha')">
+    <div class="state-card" data-hz="10" onclick="selectState(this)">
       <div class="state-name">Alpha</div>
       <div class="state-hz">8 – 13 Hz</div>
       <div class="state-desc">Relaxed wakefulness. The original Dreamachine frequency.</div>
     </div>
-    <div class="state-card" data-hz="20" onclick="selectState(this,'beta')">
+    <div class="state-card" data-hz="20" onclick="selectState(this)">
       <div class="state-name">Beta</div>
       <div class="state-hz">13 – 30 Hz</div>
       <div class="state-desc">Alert and sharp. Fast geometric patterns.</div>
@@ -163,75 +162,81 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; h
   </div>
 
   <div id="err-msg"></div>
-  <button class="enter-vr-btn" id="enter-vr-btn" onclick="enterVR()">Enter VR</button>
+  <button class="enter-vr-btn" onclick="enterVR()">Enter VR</button>
 </div>
 
 <!-- ③ Eyes reminder -->
 <div id="eyes-msg">✦ &nbsp; close your eyes and let the light find you &nbsp; ✦</div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js"
-  }
-}
-</script>
+<!-- Three.js r165 via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.min.js"></script>
 
-<script type="module">
-import * as THREE from 'three';
+<script>
+// ── Using global THREE (no importmap) so XR session plumbing is reliable on Quest ──
 
-// ── State ──────────────────────────────────────────────
 let hz = 6;
 let patternType = 'slits';
 let angle = 0;
 let scene, camera, renderer, clock;
 let cylinderMesh, topCap, bottomCap, lightCore, glowMesh, flickerLight;
-const CPOS = new THREE.Vector3(0, 1.6, -1.4); // cylinder position
 
-const lightColors = { delta:0x4466ee, theta:0xffaa44, alpha:0x88ffaa, beta:0xff8866 };
-function stateKey() { return hz<4?'delta':hz<8?'theta':hz<13?'alpha':'beta'; }
+// Cylinder sits 1.4m in front of the user at standing eye height
+const CX = 0, CY = 1.6, CZ = -1.4;
 
-// ── VR check ───────────────────────────────────────────
+const lightColors = {
+  delta: 0x4466ee,
+  theta: 0xffaa44,
+  alpha: 0x88ffaa,
+  beta:  0xff8866
+};
+
+function stateKey() {
+  return hz < 4 ? 'delta' : hz < 8 ? 'theta' : hz < 13 ? 'alpha' : 'beta';
+}
+
+// ── VR detection ───────────────────────────────────────
 const vrStatus = document.getElementById('vr-status');
 if (navigator.xr) {
-  navigator.xr.isSessionSupported('immersive-vr').then(ok => {
-    vrStatus.textContent = ok ? '✦ VR headset detected' : 'No headset — will show 3D browser preview';
+  navigator.xr.isSessionSupported('immersive-vr').then(function(ok) {
+    vrStatus.textContent = ok
+      ? '✦ VR headset detected'
+      : 'No headset detected — will preview in browser';
     vrStatus.style.color = ok ? '#88cc88' : '#666';
-  }).catch(() => { vrStatus.textContent = ''; });
+  }).catch(function() { vrStatus.textContent = ''; });
 } else {
   vrStatus.textContent = 'WebXR not available — use Meta Browser on Quest';
   vrStatus.style.color = '#c84444';
 }
 
-// ── UI handlers ────────────────────────────────────────
-window.showSettings = function() {
+// ── UI ─────────────────────────────────────────────────
+function showSettings() {
   document.getElementById('warn').style.display = 'none';
   document.getElementById('settings').classList.add('visible');
-  initScene();
-};
+  initScene(); // build scene while user reads settings
+}
 
-window.selectState = function(card, state) {
-  document.querySelectorAll('.state-card').forEach(c => c.classList.remove('selected'));
+function selectState(card) {
+  document.querySelectorAll('.state-card').forEach(function(c) { c.classList.remove('selected'); });
   card.classList.add('selected');
   hz = parseFloat(card.dataset.hz);
   document.getElementById('hzSlider').value = hz;
   document.getElementById('hzVal').textContent = hz + ' Hz';
-};
+}
 
-window.onHzInput = function(v) {
+function onHzInput(v) {
   hz = parseFloat(v);
   document.getElementById('hzVal').textContent = hz + ' Hz';
-};
+}
 
-window.selectPat = function(btn) {
-  document.querySelectorAll('.pat-btn').forEach(b => b.classList.remove('selected'));
+function selectPat(btn) {
+  document.querySelectorAll('.pat-btn').forEach(function(b) { b.classList.remove('selected'); });
   btn.classList.add('selected');
   patternType = btn.dataset.pat;
   if (scene) rebuildCylinder();
-};
+}
 
 // ── Enter VR ───────────────────────────────────────────
-window.enterVR = async function() {
+async function enterVR() {
   const errEl = document.getElementById('err-msg');
   errEl.textContent = '';
 
@@ -244,7 +249,7 @@ window.enterVR = async function() {
   try { supported = await navigator.xr.isSessionSupported('immersive-vr'); } catch(e) {}
 
   if (!supported) {
-    // Graceful fallback — hide settings, show 3D preview in browser
+    // No headset — just show the browser preview
     document.getElementById('settings').classList.remove('visible');
     document.getElementById('eyes-msg').classList.add('visible');
     return;
@@ -254,151 +259,236 @@ window.enterVR = async function() {
     const session = await navigator.xr.requestSession('immersive-vr', {
       optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
     });
+
+    // Tell Three.js to use this XR session
+    await renderer.xr.setSession(session);
+
     document.getElementById('settings').classList.remove('visible');
     document.getElementById('eyes-msg').classList.add('visible');
-    await renderer.xr.setSession(session);
-    session.addEventListener('end', () => {
+
+    session.addEventListener('end', function() {
       document.getElementById('settings').classList.add('visible');
       document.getElementById('eyes-msg').classList.remove('visible');
     });
   } catch(err) {
     errEl.textContent = 'VR error: ' + err.message;
   }
-};
+}
 
-// ── Scene setup ────────────────────────────────────────
+// ── Build scene ────────────────────────────────────────
 function initScene() {
+  if (scene) return; // don't rebuild if already initialised
+
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
   clock = new THREE.Clock();
 
-  camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.01, 50);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 50);
+  // In WebXR the headset overrides the camera — but we still need a sane default
   camera.position.set(0, 1.6, 0);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(devicePixelRatio);
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  // CRITICAL: enable XR on the renderer before any session is started
   renderer.xr.enabled = true;
+
+  // CRITICAL: tell Three.js the reference space type.
+  // 'local-floor' means the origin is at floor level and y=1.6 puts things at eye height.
+  renderer.xr.setReferenceSpaceType('local-floor');
+
   document.body.appendChild(renderer.domElement);
 
-  scene.add(new THREE.AmbientLight(0x110a04, 0.5));
-  flickerLight = new THREE.PointLight(0xffaa44, 8, 5);
-  flickerLight.position.copy(CPOS);
+  // Lighting
+  var ambient = new THREE.AmbientLight(0x110a04, 0.8);
+  scene.add(ambient);
+
+  flickerLight = new THREE.PointLight(0xffaa44, 10, 6);
+  flickerLight.position.set(CX, CY, CZ);
   scene.add(flickerLight);
 
-  // Dark floor
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(8, 64),
-    new THREE.MeshStandardMaterial({ color:0x060504, roughness:1 })
+  // Secondary fill so cylinder body is barely visible in the dark
+  var fill = new THREE.PointLight(0x331100, 3, 5);
+  fill.position.set(CX, CY + 1, CZ);
+  scene.add(fill);
+
+  // Dark floor plane — gives spatial grounding in VR
+  var floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(12, 12),
+    new THREE.MeshStandardMaterial({ color: 0x080604, roughness: 1.0 })
   );
-  floor.rotation.x = -Math.PI/2;
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0;
   scene.add(floor);
+
+  // Faint room walls — helps Orient the user in VR
+  addRoomWalls();
 
   rebuildCylinder();
   buildGlow();
 
-  window.addEventListener('resize', () => {
-    camera.aspect = innerWidth/innerHeight;
+  window.addEventListener('resize', function() {
+    camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  renderer.setAnimationLoop(animate);
+  // Three.js XR animation loop — this is what drives rendering in the headset
+  renderer.setAnimationLoop(function() {
+    animate();
+    renderer.render(scene, camera);
+  });
+}
+
+function addRoomWalls() {
+  var wallMat = new THREE.MeshStandardMaterial({ color: 0x080604, roughness: 1, side: THREE.BackSide });
+  var room = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 8), wallMat);
+  room.position.set(0, 2, 0);
+  scene.add(room);
 }
 
 // ── Cylinder ───────────────────────────────────────────
 function makeAlphaMap() {
-  const sz = 1024;
-  const cv = document.createElement('canvas');
+  var sz = 1024;
+  var cv = document.createElement('canvas');
   cv.width = cv.height = sz;
-  const ctx = cv.getContext('2d');
-  ctx.fillStyle = '#000'; ctx.fillRect(0,0,sz,sz);
+  var ctx = cv.getContext('2d');
+
+  // Black = opaque wall
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, sz, sz);
+
+  // White = transparent slit (light passes through)
   ctx.fillStyle = '#fff';
-  const n = 10;
+  var n = 10;
+
   if (patternType === 'diamond') {
-    for (let i=0;i<n;i++) {
-      const cx=(i/n+1/(n*2))*sz, cy=sz/2;
-      const w=(sz/n)*0.28, h=sz*0.52;
-      ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.PI/4);
-      ctx.fillRect(-w/2,-h/2,w,h); ctx.restore();
+    for (var i = 0; i < n; i++) {
+      var cx = (i / n + 1 / (n * 2)) * sz;
+      var cy = sz / 2;
+      var w = (sz / n) * 0.28;
+      var h = sz * 0.52;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-w/2, -h/2, w, h);
+      ctx.restore();
     }
   } else {
-    const sw=(sz/n)*(patternType==='wide'?0.40:0.20);
-    const sh=sz*0.72, sy=(sz-sh)/2;
-    for (let i=0;i<n;i++) {
-      const x=(i/n)*sz+(sz/n-sw)/2;
-      const r=sw*0.4;
-      rrect(ctx,x,sy,sw,sh,r);
+    var slitW = (sz / n) * (patternType === 'wide' ? 0.42 : 0.20);
+    var slitH = sz * 0.72;
+    var slitY = (sz - slitH) / 2;
+    for (var j = 0; j < n; j++) {
+      var x = (j / n) * sz + (sz / n - slitW) / 2;
+      var r = slitW * 0.4;
+      rrect(ctx, x, slitY, slitW, slitH, r);
     }
   }
+
   return new THREE.CanvasTexture(cv);
 }
 
-function rrect(ctx,x,y,w,h,r) {
+function rrect(ctx, x, y, w, h, r) {
   ctx.beginPath();
-  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
-  ctx.closePath(); ctx.fill();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function rebuildCylinder() {
   if (cylinderMesh) {
-    [cylinderMesh,topCap,bottomCap].forEach(m=>{scene.remove(m);m.geometry.dispose();m.material.dispose();});
+    scene.remove(cylinderMesh);
+    scene.remove(topCap);
+    scene.remove(bottomCap);
+    cylinderMesh.geometry.dispose();
+    cylinderMesh.material.dispose();
+    topCap.geometry.dispose();
+    topCap.material.dispose();
+    bottomCap.geometry.dispose();
+    bottomCap.material.dispose();
   }
-  const R=0.28, H=0.55;
-  const mat = new THREE.MeshStandardMaterial({
-    color:0x1a1000, roughness:0.9, metalness:0.05,
-    alphaMap:makeAlphaMap(), alphaTest:0.5,
-    side:THREE.DoubleSide, transparent:true,
+
+  var R = 0.28, H = 0.55;
+
+  var mat = new THREE.MeshStandardMaterial({
+    color: 0x1a1000,
+    roughness: 0.9,
+    metalness: 0.05,
+    alphaMap: makeAlphaMap(),
+    alphaTest: 0.5,
+    side: THREE.DoubleSide,
+    transparent: true
   });
-  cylinderMesh = new THREE.Mesh(new THREE.CylinderGeometry(R,R,H,128,1,true), mat);
-  cylinderMesh.position.copy(CPOS);
+
+  cylinderMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(R, R, H, 128, 1, true),
+    mat
+  );
+  cylinderMesh.position.set(CX, CY, CZ);
   scene.add(cylinderMesh);
 
-  const capMat = new THREE.MeshStandardMaterial({color:0x0a0800,roughness:1});
-  topCap = new THREE.Mesh(new THREE.CircleGeometry(R,64), capMat);
-  topCap.rotation.x = -Math.PI/2;
-  topCap.position.set(CPOS.x, CPOS.y+H/2, CPOS.z);
+  var capMat = new THREE.MeshStandardMaterial({ color: 0x0a0800, roughness: 1.0 });
+
+  topCap = new THREE.Mesh(new THREE.CircleGeometry(R, 64), capMat);
+  topCap.rotation.x = -Math.PI / 2;
+  topCap.position.set(CX, CY + H/2, CZ);
   scene.add(topCap);
-  bottomCap = new THREE.Mesh(new THREE.CircleGeometry(R,64), capMat);
-  bottomCap.rotation.x = Math.PI/2;
-  bottomCap.position.set(CPOS.x, CPOS.y-H/2, CPOS.z);
+
+  bottomCap = new THREE.Mesh(new THREE.CircleGeometry(R, 64), capMat);
+  bottomCap.rotation.x = Math.PI / 2;
+  bottomCap.position.set(CX, CY - H/2, CZ);
   scene.add(bottomCap);
 }
 
 function buildGlow() {
+  // The visible bulb inside — you see this through the slits
   lightCore = new THREE.Mesh(
-    new THREE.SphereGeometry(0.04,16,16),
-    new THREE.MeshBasicMaterial({color:0xfff5cc})
+    new THREE.SphereGeometry(0.05, 16, 16),
+    new THREE.MeshBasicMaterial({ color: 0xfff8e0 })
   );
-  lightCore.position.copy(CPOS);
+  lightCore.position.set(CX, CY, CZ);
   scene.add(lightCore);
 
+  // Soft outer glow halo
   glowMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.13,16,16),
-    new THREE.MeshBasicMaterial({color:0xffcc66,transparent:true,opacity:0.14,side:THREE.BackSide})
+    new THREE.SphereGeometry(0.14, 16, 16),
+    new THREE.MeshBasicMaterial({
+      color: 0xffcc66,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.BackSide
+    })
   );
-  glowMesh.position.copy(CPOS);
+  glowMesh.position.set(CX, CY, CZ);
   scene.add(glowMesh);
 }
 
 // ── Animate ────────────────────────────────────────────
 function animate() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  var dt = Math.min(clock.getDelta(), 0.05);
   angle += dt * hz * Math.PI * 2;
-  if (cylinderMesh) cylinderMesh.rotation.y = angle;
 
-  const flicker = 0.5 + 0.5 * Math.sin(angle);
-  flickerLight.intensity = 4 + 14 * flicker;
+  if (cylinderMesh) {
+    cylinderMesh.rotation.y = angle;
+  }
+
+  // Flicker the light in sync with rotation — this IS the strobe effect
+  var flicker = 0.5 + 0.5 * Math.sin(angle);
+  flickerLight.intensity = 6 + 16 * flicker;
   flickerLight.color.setHex(lightColors[stateKey()]);
 
   if (lightCore) {
-    const b = 0.6 + 0.4*flicker;
-    lightCore.material.color.setRGB(b, b*0.96, b*0.82);
+    var b = 0.6 + 0.4 * flicker;
+    lightCore.material.color.setRGB(b, b * 0.97, b * 0.84);
   }
-  if (glowMesh) glowMesh.material.opacity = 0.06 + 0.2*flicker;
+  if (glowMesh) {
+    glowMesh.material.opacity = 0.06 + 0.22 * flicker;
+  }
 }
 </script>
 </body>
