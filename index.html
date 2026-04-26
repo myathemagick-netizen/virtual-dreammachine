@@ -153,128 +153,93 @@ scene.add(floorMesh);
 // ─────────────────────────────────────────────────────────
 
 function makeSlitTexture() {
-  var sz = 2048;
-  var cv = document.createElement('canvas');
+  // Texture is square: horizontal = full circumference, vertical = full height
+  // SVG source: 3019.84 wide x 2053.89 tall
+  // We reproduce the exact shape positions from the SVG
+  var sz  = 2048;
+  var cv  = document.createElement('canvas');
   cv.width = cv.height = sz;
   var ctx = cv.getContext('2d');
-
-  // Black background = solid cylinder wall
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, sz, sz);
-
-  // White = cut-out (light passes through)
   ctx.fillStyle = '#ffffff';
 
-  // Grid: 18 columns × 18 rows of 2" squares
-  // Texture wraps around full circumference (horizontal = 360°)
-  // and full height of cylinder (vertical)
-  //
-  // Large stadium shapes:
-  //   width  = 2 grid units = 2/18 of texture width
-  //   height = 4 grid units = 4/18 of texture height
-  //   arranged in 6 columns, offset alternately
-  //
-  // We use 6 columns of large shapes across the circumference
+  // ── SCALE FACTORS ────────────────────────────────────
+  // SVG canvas 3019.84 x 2053.89 → texture sz x sz
+  var SX = sz / 3019.84;   // horizontal scale
+  var SY = sz / 2053.89;   // vertical scale
 
-  var COLS    = 6;    // major shape columns
-  var colW    = sz / COLS;
-  var shapeW  = colW * 0.52;    // shape width ~52% of column pitch
-  var shapeH  = sz  * 0.215;   // shape height ~21.5% of cylinder height
-  var pitchV  = sz  * 0.265;   // vertical pitch between shape centres
-  var ROWS    = 4;              // shapes per column
+  // Layer transform in SVG: translate(2880.8125, -978.38898)
+  // So SVG coords are: svgX = pathX + 2880.8125, svgY = pathY - 978.38898
+  // In canvas space: canvasX = svgX * SX, canvasY = svgY * SY
 
-  // Total height of all shapes in one column
-  var totalH  = ROWS * shapeH + (ROWS-1) * (pitchV - shapeH);
-  var startY  = (sz - totalH) / 2 - (pitchV - shapeH) / 2;
+  // All shapes are stadiums. Two sizes:
+  //   Large:  radius = 133.44px SVG → 133.44*SX wide, 133.44*SY tall (caps)
+  //           body height = 266.89*SY
+  //   Small:  radius = 66.72px SVG
+  //           body height = 266.89*SY (same body, half width)
 
-  for (var col = 0; col < COLS; col++) {
-    var cx    = col * colW + (colW - shapeW) / 2;
-    // Odd columns offset vertically by half a pitch
-    var offY  = (col % 2 === 1) ? pitchV * 0.5 : 0;
+  var LR   = 133.44;   // large cap radius in SVG px
+  var SR   = 66.72;    // small cap radius in SVG px
+  var BODY = 266.89;   // body height in SVG px (both sizes)
 
-    for (var row = 0; row < ROWS; row++) {
-      var cy = startY + offY + row * pitchV;
-      // Draw large stadium shape (rounded rectangle, fully rounded ends)
-      stadium(ctx, cx, cy, shapeW, shapeH);
-    }
-  }
+  // Large shape positions — (svgX of left edge, svgY of top cap centre)
+  // From parsed SVG paths (after layer transform applied):
+  var largeShapes = [
+    // Row 1 (y=721.3 = top of top cap)
+    [123.7,721.3],[497.0,721.3],[603.5,721.3],[976.9,721.3],
+    [1083.3,721.3],[1456.7,721.3],[1563.2,721.3],[1936.5,721.3],
+    [2043.0,721.3],[2416.3,721.3],[2522.8,721.3],[2896.2,721.3],
+    // Row 2 (y=1309.6)
+    [123.7,1309.6],[497.0,1309.6],[603.5,1309.6],[976.9,1309.6],
+    [1083.3,1309.6],[1456.7,1309.6],[1563.2,1309.6],[1936.5,1309.6],
+    [2043.0,1309.6],[2416.3,1309.6],[2522.8,1309.6],[2896.2,1309.6],
+  ];
 
-  // Small diamond/lens connector shapes between the large ones
-  // These appear where the rounded ends of adjacent shapes nearly touch
-  // They are small pointed ovals oriented vertically
-  var dW = shapeW * 0.28;   // diamond width
-  var dH = shapeH * 0.32;   // diamond height
+  // Small shape positions — x is left edge, y is top of top cap
+  // From SVG paths 7-13 and 22-23, 46-51 etc. (the sccsccs paths)
+  var smallShapes = [
+    // y ≈ 948.7 row (between row1 top and row1 body)
+    [70.5,815.3],[243.6,948.7],[550.3,1215.6],[723.5,948.7],
+    [1030.1,1215.6],[1203.3,948.7],[1509.9,1215.6],[1683.1,948.7],
+    [1989.8,1215.6],[2162.9,948.7],[2469.6,1215.6],[2642.8,948.7],
+    [2949.4,815.3],
+    // y ≈ 1215.6 row (between row1 bottom and row2 top)
+    [70.5,1215.6],[550.3,1215.6],[1030.1,1215.6],[1509.9,1215.6],
+    [1989.8,1215.6],[2469.6,1215.6],[2949.4,1215.6],
+  ];
 
-  for (var col2 = 0; col2 < COLS; col2++) {
-    var cx2  = col2 * colW + colW/2;
-    var offY2 = (col2 % 2 === 1) ? pitchV*0.5 : 0;
+  // Draw large stadiums
+  largeShapes.forEach(function(s) {
+    var x = s[0] * SX;
+    var y = s[1] * SY;
+    var r = LR * SX;     // use SX for radius (horizontal)
+    var body = BODY * SY;
+    drawStadium(ctx, x, y, r, body);
+  });
 
-    // Between consecutive shapes in the same column — small connector
-    for (var row2 = 0; row2 < ROWS - 1; row2++) {
-      // Midpoint between bottom of shape[row] and top of shape[row+1]
-      var topShape    = startY + offY2 + row2 * pitchV + shapeH;
-      var bottomShape = startY + offY2 + (row2+1) * pitchV;
-      var midY        = (topShape + bottomShape) / 2;
-      var gapH        = bottomShape - topShape;
-
-      // Only draw connector if there's enough gap
-      if (gapH > dH * 0.5) {
-        diamond(ctx, cx2 - dW/2, midY - dH/2, dW, dH);
-      }
-    }
-
-    // Also connectors between this column and adjacent column
-    // at the horizontal midpoint — these are the side connectors
-    if (col2 < COLS - 1) {
-      var cx3    = (col2 * colW + colW/2 + (col2+1)*colW + colW/2) / 2;
-      var offY3a = (col2   % 2 === 1) ? pitchV*0.5 : 0;
-      var offY3b = ((col2+1) % 2 === 1) ? pitchV*0.5 : 0;
-
-      for (var row3 = 0; row3 < ROWS; row3++) {
-        // Centre of shape in col2
-        var yA = startY + offY3a + row3 * pitchV + shapeH/2;
-        // Find nearest shape centre in col2+1
-        for (var row4 = 0; row4 < ROWS; row4++) {
-          var yB = startY + offY3b + row4 * pitchV + shapeH/2;
-          var dy = Math.abs(yA - yB);
-          // If centres are close vertically, draw a horizontal connector
-          if (dy < pitchV * 0.55 && dy > pitchV * 0.1) {
-            var midY2 = (yA + yB) / 2;
-            var dW2   = dW * 0.9;
-            var dH2   = dH * 0.85;
-            diamond(ctx, cx3 - dW2/2, midY2 - dH2/2, dW2, dH2);
-          }
-        }
-      }
-    }
-  }
+  // Draw small stadiums
+  smallShapes.forEach(function(s) {
+    var x = s[0] * SX;
+    var y = s[1] * SY;
+    var r = SR * SX;
+    var body = BODY * SY;
+    drawStadium(ctx, x, y, r, body);
+  });
 
   return new THREE.CanvasTexture(cv);
 }
 
-// Stadium shape: rectangle with fully semicircular ends
-function stadium(ctx, x, y, w, h) {
-  var r = w / 2;
-  if (h < w) r = h / 2;
+// Draw a stadium (pill shape): x,y = left edge of top cap centre
+// r = cap radius, body = height of rectangular section
+function drawStadium(ctx, x, y, r, body) {
+  // x is the left edge, so centre x = x + r
+  var cx = x + r;
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arc(x + w - r, y + r, r, -Math.PI/2, Math.PI/2);
-  ctx.lineTo(x + r, y + h);
-  ctx.arc(x + r, y + h - r, r, Math.PI/2, -Math.PI/2);
-  ctx.closePath();
-  ctx.fill();
-}
-
-// Diamond/lens shape: pointed oval
-function diamond(ctx, x, y, w, h) {
-  var cx = x + w/2, cy = y + h/2;
-  ctx.beginPath();
-  ctx.moveTo(cx, y);           // top point
-  ctx.quadraticCurveTo(x+w, y,       cx+w*0.12, cy); // top-right
-  ctx.quadraticCurveTo(x+w, y+h,     cx,        y+h); // bottom point via right
-  ctx.quadraticCurveTo(x,   y+h,     cx-w*0.12, cy); // bottom-left
-  ctx.quadraticCurveTo(x,   y,       cx,        y);   // top point via left
+  ctx.arc(cx, y + r, r, Math.PI, 0);           // top semicircle
+  ctx.lineTo(cx + r, y + r + body);             // right side
+  ctx.arc(cx, y + r + body, r, 0, Math.PI);     // bottom semicircle
+  ctx.lineTo(cx - r, y + r);                    // left side
   ctx.closePath();
   ctx.fill();
 }
