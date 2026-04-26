@@ -78,27 +78,28 @@ body { background:#000; overflow:hidden; font-family:'Courier New',monospace; }
 <script>
 (function() {
 
+// ── Parameters ─────────────────────────────────────────
 var hz  = 10;
+// Cylinder: 1m tall, 19cm radius — authentic Gysin proportions
 var CYL_H = 1.00;
 var CYL_R = 0.19;
+// Position: arm's length in front, eye height
 var CX=0, CY=1.6, CZ=-0.65;
-
-// The authentic Gysin pattern has 5 distinct shapes arranged across
-// the sheet. At 78 RPM this produces the target alpha flicker.
-// We fix rotation to always produce the target Hz.
-function angVel() { return (hz * 60 / 10) / 60 * Math.PI * 2; }
+// RPM drives flicker: at 78 RPM with the authentic pattern = ~20 Hz
+// We adjust RPM to hit target Hz
+function angVel() { return (hz / 20.8) * (78/60) * Math.PI * 2; }
 
 // ── Renderer ───────────────────────────────────────────
 var canvas   = document.getElementById('canvas');
 var renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x000000, 1);
+renderer.setClearColor(0x000000,1);
 renderer.xr.enabled = true;
 renderer.toneMapping = THREE.NoToneMapping;
 
 window.addEventListener('resize', function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
@@ -109,137 +110,136 @@ camera.position.set(0, 1.6, 0);
 var clock  = new THREE.Clock();
 var angle  = 0;
 
-// No ambient — completely dark room
-scene.add(new THREE.AmbientLight(0x030202, 1));
+// ── Lighting ───────────────────────────────────────────
+// Absolute minimum ambient — nearly black room
+scene.add(new THREE.AmbientLight(0x050403, 1));
 
-// Constant bright bulb — never flickers in code
-// The cylinder geometry produces the strobe physically
-var bulbLight = new THREE.PointLight(0xfff5e0, 35, 4.0);
+// The bulb: CONSTANT, never flickers in code.
+// All strobing comes purely from the cylinder geometry blocking light.
+var bulbLight = new THREE.PointLight(0xfff5e0, 40, 4.5);
+// Bulb hangs 1/3 down from top per Gysin's instructions
 bulbLight.position.set(CX, CY + CYL_H * 0.17, CZ);
 scene.add(bulbLight);
-var bulbLight2 = new THREE.PointLight(0xfff5e0, 20, 3.5);
-bulbLight2.position.set(CX, CY - CYL_H * 0.05, CZ);
+
+// Second light for lower half
+var bulbLight2 = new THREE.PointLight(0xfff5e0, 25, 3.5);
+bulbLight2.position.set(CX, CY - CYL_H * 0.1, CZ);
 scene.add(bulbLight2);
 
-// Barely visible dark room walls
+// ── Room — barely visible dark walls ───────────────────
 var wallMat = new THREE.MeshBasicMaterial({ color:0x0b0807, side:THREE.BackSide });
 var room = new THREE.Mesh(new THREE.BoxBufferGeometry(3.6,3.0,4.2), wallMat);
-room.position.set(0,1.5,-0.8); scene.add(room);
-var floorMesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(3.6,4.2),
-  new THREE.MeshBasicMaterial({color:0x070503}));
+room.position.set(0,1.5,-0.8);
+scene.add(room);
+
+var floorMesh = new THREE.Mesh(
+  new THREE.PlaneBufferGeometry(3.6,4.2),
+  new THREE.MeshBasicMaterial({color:0x070503})
+);
 floorMesh.rotation.x = -Math.PI/2;
 floorMesh.position.set(0,0,-0.8);
 scene.add(floorMesh);
 
 // ─────────────────────────────────────────────────────────
-// AUTHENTIC GYSIN PATTERN
+// AUTHENTIC GYSIN SLIT PATTERN
 //
-// From the plan image: 36"×36" sheet on a 2" grid = 18×18 grid cells
-// The pattern has large stadium (rounded rectangle) shapes in columns,
-// offset by half a pitch between adjacent columns — classic brick layout.
-// Between the large shapes, where their rounded ends nearly meet,
-// small pointed diamond/lens shapes fill the gap.
+// Based on the original SVG template (45rpm version).
+// The pattern is a flat sheet that wraps into a cylinder.
 //
-// Analysing the image:
-//   - Each large shape is ~2 cells wide × 4 cells tall (4"×8")
-//   - Shapes are spaced ~1 cell apart horizontally (2" gap)
-//   - Adjacent columns offset by ~2 cells (4") vertically
-//   - The "connector" shapes are ~1×1 cell pointed ovals
-//   - There are ~6 columns across the 36" width
-//   - Each column has ~3-4 shapes vertically
+// KEY INSIGHT: In the alpha map texture—
+//   BLACK = opaque wall (blocks light)
+//   WHITE = hole (light passes through)
 //
-// This is the pattern that when wrapped into a cylinder produces
-// the complex multi-harmonic flicker Sommerville calculated.
+// The SVG has a GREY background with WHITE shapes.
+// The white shapes ARE the holes.
+// So: draw black background, draw white holes.
+//
+// Shape layout from SVG analysis:
+//   Large stadiums: r=133.44, body=266.89 (SVG px)
+//   Small stadiums: r=66.72,  body=266.89 (SVG px)
+//   SVG canvas: 3019.84 wide × 2053.89 tall
+//
+// The texture maps: x=circumference, y=height
 // ─────────────────────────────────────────────────────────
 
 function makeSlitTexture() {
-  // Texture is square: horizontal = full circumference, vertical = full height
-  // SVG source: 3019.84 wide x 2053.89 tall
-  // We reproduce the exact shape positions from the SVG
-  var sz  = 2048;
-  var cv  = document.createElement('canvas');
-  cv.width = cv.height = sz;
+  var W = 3019.84;  // SVG canvas width
+  var H = 2053.89;  // SVG canvas height
+  var sz = 2048;    // texture size
+
+  var cv = document.createElement('canvas');
+  cv.width = sz; cv.height = sz;
   var ctx = cv.getContext('2d');
-  ctx.fillStyle = '#000000';
+
+  // BLACK = solid wall
+  ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, sz, sz);
-  ctx.fillStyle = '#ffffff';
 
-  // ── SCALE FACTORS ────────────────────────────────────
-  // SVG canvas 3019.84 x 2053.89 → texture sz x sz
-  var SX = sz / 3019.84;   // horizontal scale
-  var SY = sz / 2053.89;   // vertical scale
+  // WHITE = holes (light passes through)
+  ctx.fillStyle = '#fff';
 
-  // Layer transform in SVG: translate(2880.8125, -978.38898)
-  // So SVG coords are: svgX = pathX + 2880.8125, svgY = pathY - 978.38898
-  // In canvas space: canvasX = svgX * SX, canvasY = svgY * SY
+  // Scale factors from SVG space to texture space
+  var sx = sz / W;
+  var sy = sz / H;
 
-  // All shapes are stadiums. Two sizes:
-  //   Large:  radius = 133.44px SVG → 133.44*SX wide, 133.44*SY tall (caps)
-  //           body height = 266.89*SY
-  //   Small:  radius = 66.72px SVG
-  //           body height = 266.89*SY (same body, half width)
+  // Large stadium radius and body (in SVG px)
+  var LR   = 133.44;
+  var LBODY= 266.89;
 
-  var LR   = 133.44;   // large cap radius in SVG px
-  var SR   = 66.72;    // small cap radius in SVG px
-  var BODY = 266.89;   // body height in SVG px (both sizes)
+  // Small stadium radius and body (in SVG px)
+  var SR   = 66.72;
+  var SBODY= 266.89;
 
-  // Large shape positions — (svgX of left edge, svgY of top cap centre)
-  // From parsed SVG paths (after layer transform applied):
-  var largeShapes = [
-    // Row 1 (y=721.3 = top of top cap)
+  // All positions are (leftEdge_x, topOfTopCap_y) in SVG canvas coords
+  // (after applying the layer transform: tx=2880.8125, ty=-978.38898)
+
+  // ── LARGE STADIUMS ─────────────────────────────────
+  // Row 1 — upper band
+  var large = [
+    // Row 1 (top of top cap y=721.3)
     [123.7,721.3],[497.0,721.3],[603.5,721.3],[976.9,721.3],
     [1083.3,721.3],[1456.7,721.3],[1563.2,721.3],[1936.5,721.3],
     [2043.0,721.3],[2416.3,721.3],[2522.8,721.3],[2896.2,721.3],
-    // Row 2 (y=1309.6)
+    // Row 2 (top of top cap y=1309.6)
     [123.7,1309.6],[497.0,1309.6],[603.5,1309.6],[976.9,1309.6],
     [1083.3,1309.6],[1456.7,1309.6],[1563.2,1309.6],[1936.5,1309.6],
     [2043.0,1309.6],[2416.3,1309.6],[2522.8,1309.6],[2896.2,1309.6],
   ];
 
-  // Small shape positions — x is left edge, y is top of top cap
-  // From SVG paths 7-13 and 22-23, 46-51 etc. (the sccsccs paths)
-  var smallShapes = [
-    // y ≈ 948.7 row (between row1 top and row1 body)
-    [70.5,815.3],[243.6,948.7],[550.3,1215.6],[723.5,948.7],
-    [1030.1,1215.6],[1203.3,948.7],[1509.9,1215.6],[1683.1,948.7],
-    [1989.8,1215.6],[2162.9,948.7],[2469.6,1215.6],[2642.8,948.7],
-    [2949.4,815.3],
-    // y ≈ 1215.6 row (between row1 bottom and row2 top)
+  large.forEach(function(s) {
+    pill(ctx, s[0]*sx, s[1]*sy, LR*sx, LBODY*sy);
+  });
+
+  // ── SMALL STADIUMS (connectors between large ones) ──
+  // These sit between the rows of large shapes
+  // X positions from SVG paths (sccsccs type), y=948 and y=1215 rows
+  var small = [
+    // Upper connector row (y≈948 and y≈815)
+    [70.5,815.3],[243.6,948.7],[723.5,948.7],
+    [1203.3,948.7],[1683.1,948.7],[2162.9,948.7],[2642.8,948.7],[2949.4,815.3],
+    // Lower connector row (y≈1215)
     [70.5,1215.6],[550.3,1215.6],[1030.1,1215.6],[1509.9,1215.6],
     [1989.8,1215.6],[2469.6,1215.6],[2949.4,1215.6],
   ];
 
-  // Draw large stadiums
-  largeShapes.forEach(function(s) {
-    var x = s[0] * SX;
-    var y = s[1] * SY;
-    var r = LR * SX;     // use SX for radius (horizontal)
-    var body = BODY * SY;
-    drawStadium(ctx, x, y, r, body);
-  });
-
-  // Draw small stadiums
-  smallShapes.forEach(function(s) {
-    var x = s[0] * SX;
-    var y = s[1] * SY;
-    var r = SR * SX;
-    var body = BODY * SY;
-    drawStadium(ctx, x, y, r, body);
+  small.forEach(function(s) {
+    pill(ctx, s[0]*sx, s[1]*sy, SR*sx, SBODY*sy);
   });
 
   return new THREE.CanvasTexture(cv);
 }
 
-// Draw a stadium (pill shape): x,y = left edge of top cap centre
-// r = cap radius, body = height of rectangular section
-function drawStadium(ctx, x, y, r, body) {
-  // x is the left edge, so centre x = x + r
-  var cx = x + r;
+// Draw a pill/stadium shape.
+// x,y = top-left corner of bounding box (left edge, top of top semicircle)
+// r   = radius of semicircular caps
+// body= height of rectangular middle section
+// Total height = 2r + body, total width = 2r
+function pill(ctx, x, y, r, body) {
+  var cx = x + r;  // centre x
   ctx.beginPath();
-  ctx.arc(cx, y + r, r, Math.PI, 0);           // top semicircle
-  ctx.lineTo(cx + r, y + r + body);             // right side
-  ctx.arc(cx, y + r + body, r, 0, Math.PI);     // bottom semicircle
-  ctx.lineTo(cx - r, y + r);                    // left side
+  ctx.arc(cx, y + r,        r, Math.PI, 0);      // top cap
+  ctx.lineTo(cx + r, y + r + body);               // right edge
+  ctx.arc(cx, y + r + body, r, 0,        Math.PI); // bottom cap
   ctx.closePath();
   ctx.fill();
 }
@@ -250,21 +250,172 @@ var cylGroup;
 function buildCylinder() {
   if (cylGroup) {
     scene.remove(cylGroup);
-    cylGroup.traverse(function(o){
-      if(o.geometry) o.geometry.dispose();
-      if(o.material){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    cylGroup.traverse(function(o) {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        if (o.material.map) o.material.map.dispose();
+        o.material.dispose();
+      }
     });
   }
 
   cylGroup = new THREE.Group();
   cylGroup.position.set(CX, CY, CZ);
 
-  // Cylinder wall with authentic slit pattern
-  var cylMesh = new THREE.Mesh(
+  // ── Main cylinder wall ──────────────────────────────
+  // MeshBasicMaterial with alphaMap:
+  //   alphaMap white = fully opaque (wall blocks light)  ← WRONG default
+  // Actually in Three.js alphaMap: white=opaque, black=transparent
+  // BUT we want: white=hole (transparent), black=wall (opaque)
+  // So we need to INVERT: use the texture as-is but set alphaMap
+  // and rely on alphaTest. White areas (holes) in our texture = transparent.
+  // Wait — Three.js alphaMap: white=fully visible, black=fully invisible
+  // That means white=hole IS correct for alphaMap! The mesh shows where alphaMap is WHITE.
+  // So white pixels = mesh IS rendered (opaque wall) ← that's the problem from before
+  // 
+  // To make white=HOLE we need to either:
+  //   a) Invert the texture (swap black/white) — draw black holes on white background
+  //   b) Use alphaMap correctly: white=opaque wall, black=hole
+  //
+  // SOLUTION: Draw WHITE background, BLACK holes. Then alphaMap white=wall, black=hole.
+
+  var tex = makeSlitTexture();
+
+  // The cylinder wall material:
+  // - alphaMap controls opacity: white=show mesh (wall), black=hide mesh (hole)
+  // - Our texture has BLACK=wall, WHITE=hole → INVERT needed
+  // We invert by drawing the texture differently: white BG, black holes
+
+  cylGroup.add(new THREE.Mesh(
     new THREE.CylinderBufferGeometry(CYL_R, CYL_R, CYL_H, 128, 1, true),
     new THREE.MeshBasicMaterial({
-      color:       0x181008,
-      alphaMap:    makeSlitTexture(),
+      color:       0x1a1208,   // dark card/paper colour
+      alphaMap:    tex,
+      alphaTest:   0.5,        // pixels where alphaMap > 0.5 are rendered
+      side:        THREE.DoubleSide,
+      transparent: true,
+    })
+  ));
+
+  // Solid top cap
+  var capMat = new THREE.MeshBasicMaterial({ color:0x0e0a04 });
+  var top = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R, 64), capMat);
+  top.rotation.x = -Math.PI/2;
+  top.position.y = CYL_H/2 + 0.001;
+  cylGroup.add(top);
+
+  // Solid bottom cap
+  var bot = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R, 64), capMat.clone());
+  bot.rotation.x = Math.PI/2;
+  bot.position.y = -CYL_H/2 - 0.001;
+  cylGroup.add(bot);
+
+  // The visible bulb — tiny white sphere, very bright
+  var bulbMesh = new THREE.Mesh(
+    new THREE.SphereBufferGeometry(0.018, 16, 16),
+    new THREE.MeshBasicMaterial({ color:0xffffff })
+  );
+  bulbMesh.position.y = CYL_H * 0.17;
+  cylGroup.add(bulbMesh);
+
+  // Inner glow — warm bloom visible through the holes
+  var g1 = new THREE.Mesh(new THREE.SphereBufferGeometry(0.05,16,16),
+    new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:1.0,side:THREE.BackSide}));
+  g1.position.y = CYL_H*0.17; cylGroup.add(g1);
+
+  var g2 = new THREE.Mesh(new THREE.SphereBufferGeometry(0.10,16,16),
+    new THREE.MeshBasicMaterial({color:0xfff5cc,transparent:true,opacity:0.85,side:THREE.BackSide}));
+  g2.position.y = CYL_H*0.17; cylGroup.add(g2);
+
+  var g3 = new THREE.Mesh(new THREE.SphereBufferGeometry(0.16,16,16),
+    new THREE.MeshBasicMaterial({color:0xffeeaa,transparent:true,opacity:0.55,side:THREE.BackSide}));
+  g3.position.y = CYL_H*0.17; cylGroup.add(g3);
+
+  // Axle rod
+  var axle = new THREE.Mesh(
+    new THREE.CylinderBufferGeometry(0.005,0.005,CYL_H+0.06,8),
+    new THREE.MeshBasicMaterial({color:0x2a2010})
+  );
+  cylGroup.add(axle);
+
+  scene.add(cylGroup);
+}
+
+// ── Build everything ────────────────────────────────────
+// We need two separate textures:
+// 1. The WALL texture: white where wall exists, black where holes are
+// 2. That means we invert our makeSlitTexture
+
+// Override makeSlitTexture to draw CORRECTLY for alphaMap:
+// alphaMap: white = render pixel (wall), black = transparent (hole)
+// So: white background, black holes
+function makeWallTexture() {
+  var W = 3019.84, H = 2053.89, sz = 2048;
+  var cv = document.createElement('canvas');
+  cv.width = sz; cv.height = sz;
+  var ctx = cv.getContext('2d');
+
+  // WHITE = solid wall (rendered)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, sz, sz);
+
+  // BLACK = holes (transparent — light passes through)
+  ctx.fillStyle = '#000';
+
+  var sx = sz/W, sy = sz/H;
+  var LR=133.44, LBODY=266.89, SR=66.72, SBODY=266.89;
+
+  var large = [
+    [123.7,721.3],[497.0,721.3],[603.5,721.3],[976.9,721.3],
+    [1083.3,721.3],[1456.7,721.3],[1563.2,721.3],[1936.5,721.3],
+    [2043.0,721.3],[2416.3,721.3],[2522.8,721.3],[2896.2,721.3],
+    [123.7,1309.6],[497.0,1309.6],[603.5,1309.6],[976.9,1309.6],
+    [1083.3,1309.6],[1456.7,1309.6],[1563.2,1309.6],[1936.5,1309.6],
+    [2043.0,1309.6],[2416.3,1309.6],[2522.8,1309.6],[2896.2,1309.6],
+  ];
+  large.forEach(function(s){ pill(ctx,s[0]*sx,s[1]*sy,LR*sx,LBODY*sy); });
+
+  var small = [
+    [70.5,815.3],[243.6,948.7],[723.5,948.7],
+    [1203.3,948.7],[1683.1,948.7],[2162.9,948.7],[2642.8,948.7],[2949.4,815.3],
+    [70.5,1215.6],[550.3,1215.6],[1030.1,1215.6],[1509.9,1215.6],
+    [1989.8,1215.6],[2469.6,1215.6],[2949.4,1215.6],
+  ];
+  small.forEach(function(s){ pill(ctx,s[0]*sx,s[1]*sy,SR*sx,SBODY*sy); });
+
+  return new THREE.CanvasTexture(cv);
+}
+
+function pill(ctx, x, y, r, body) {
+  var cx = x + r;
+  ctx.beginPath();
+  ctx.arc(cx, y+r,        r, Math.PI, 0);
+  ctx.lineTo(cx+r, y+r+body);
+  ctx.arc(cx, y+r+body,   r, 0, Math.PI);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Replace buildCylinder to use correct texture
+function buildCylinder() {
+  if (cylGroup) {
+    scene.remove(cylGroup);
+    cylGroup.traverse(function(o){
+      if(o.geometry) o.geometry.dispose();
+      if(o.material){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    });
+  }
+  cylGroup = new THREE.Group();
+  cylGroup.position.set(CX,CY,CZ);
+
+  // Cylinder wall: white background with black holes as alphaMap
+  // alphaTest=0.5: pixels where alphaMap > 0.5 (white=wall) are rendered
+  //                pixels where alphaMap < 0.5 (black=hole) are invisible → light passes
+  var cylMesh = new THREE.Mesh(
+    new THREE.CylinderBufferGeometry(CYL_R,CYL_R,CYL_H,128,1,true),
+    new THREE.MeshBasicMaterial({
+      color:       0x1a1208,
+      alphaMap:    makeWallTexture(),
       alphaTest:   0.5,
       side:        THREE.DoubleSide,
       transparent: true,
@@ -272,44 +423,29 @@ function buildCylinder() {
   );
   cylGroup.add(cylMesh);
 
-  // Solid caps
-  var capMat = new THREE.MeshBasicMaterial({ color:0x0e0a04 });
-  var capTop = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R, 64), capMat);
-  capTop.rotation.x = -Math.PI/2; capTop.position.y = CYL_H/2+0.001;
-  cylGroup.add(capTop);
-  var capBot = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R, 64), capMat.clone());
-  capBot.rotation.x = Math.PI/2; capBot.position.y = -CYL_H/2-0.001;
-  cylGroup.add(capBot);
+  var capMat = new THREE.MeshBasicMaterial({color:0x0e0a04});
+  var top = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R,64), capMat);
+  top.rotation.x=-Math.PI/2; top.position.y=CYL_H/2+0.001;
+  cylGroup.add(top);
+  var bot = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R,64), capMat.clone());
+  bot.rotation.x=Math.PI/2; bot.position.y=-CYL_H/2-0.001;
+  cylGroup.add(bot);
 
-  // The bulb — white hot, very bright
-  var bulbMesh = new THREE.Mesh(
-    new THREE.SphereBufferGeometry(0.016, 12, 12),
-    new THREE.MeshBasicMaterial({ color:0xffffff })
-  );
-  bulbMesh.position.y = CYL_H * 0.17;
-  cylGroup.add(bulbMesh);
+  // Bright bulb
+  var bulbMesh = new THREE.Mesh(new THREE.SphereBufferGeometry(0.018,16,16),
+    new THREE.MeshBasicMaterial({color:0xffffff}));
+  bulbMesh.position.y=CYL_H*0.17; cylGroup.add(bulbMesh);
 
-  // Inner glow — large, very bright, seen blazing through slits
-  var glow1 = new THREE.Mesh(
-    new THREE.SphereBufferGeometry(0.055, 16, 16),
-    new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:1.0, side:THREE.BackSide })
-  );
-  glow1.position.y = CYL_H * 0.17;
-  cylGroup.add(glow1);
-
-  var glow2 = new THREE.Mesh(
-    new THREE.SphereBufferGeometry(0.11, 16, 16),
-    new THREE.MeshBasicMaterial({ color:0xfff5cc, transparent:true, opacity:0.85, side:THREE.BackSide })
-  );
-  glow2.position.y = CYL_H * 0.17;
-  cylGroup.add(glow2);
-
-  var glow3 = new THREE.Mesh(
-    new THREE.SphereBufferGeometry(0.17, 16, 16),
-    new THREE.MeshBasicMaterial({ color:0xffeeaa, transparent:true, opacity:0.55, side:THREE.BackSide })
-  );
-  glow3.position.y = CYL_H * 0.17;
-  cylGroup.add(glow3);
+  // Glow layers
+  [
+    [0.05, 0xffffff, 1.0],
+    [0.10, 0xfff5cc, 0.85],
+    [0.16, 0xffeeaa, 0.55],
+  ].forEach(function(g) {
+    var m = new THREE.Mesh(new THREE.SphereBufferGeometry(g[0],16,16),
+      new THREE.MeshBasicMaterial({color:g[1],transparent:true,opacity:g[2],side:THREE.BackSide}));
+    m.position.y=CYL_H*0.17; cylGroup.add(m);
+  });
 
   var axle = new THREE.Mesh(new THREE.CylinderBufferGeometry(0.005,0.005,CYL_H+0.06,8),
     new THREE.MeshBasicMaterial({color:0x2a2010}));
@@ -320,18 +456,17 @@ function buildCylinder() {
 
 buildCylinder();
 
-// ── In-VR panel ────────────────────────────────────────
+// ── In-VR control panel ────────────────────────────────
 var panel, panelCtx, panelTex;
-var PW=512, PH=240;
+var PW=512, PH=220;
 var BTNS=[
-  {id:'delta', label:'Delta',  sub:'1–4 Hz',  hz:2,  x:12,y:44,w:108,h:52},
-  {id:'theta', label:'Theta',  sub:'4–8 Hz',  hz:6,  x:128,y:44,w:108,h:52},
-  {id:'alpha', label:'Alpha',  sub:'8–13 Hz', hz:10, x:244,y:44,w:108,h:52},
-  {id:'beta',  label:'Beta',   sub:'13–30 Hz',hz:20, x:360,y:44,w:128,h:52},
-  {id:'hzdown',label:'−',      x:12, y:124,w:60,h:42},
-  {id:'hzup',  label:'+',      x:80, y:124,w:60,h:42},
+  {id:'delta',label:'Delta', sub:'1–4',  hz:2,  x:12, y:44,w:108,h:50},
+  {id:'theta',label:'Theta', sub:'4–8',  hz:6,  x:128,y:44,w:108,h:50},
+  {id:'alpha',label:'Alpha', sub:'8–13', hz:10, x:244,y:44,w:108,h:50},
+  {id:'beta', label:'Beta',  sub:'13–30',hz:20, x:360,y:44,w:128,h:50},
+  {id:'hzdown',label:'−',    x:12, y:122,w:60,h:42},
+  {id:'hzup',  label:'+',    x:80, y:122,w:60,h:42},
 ];
-
 function drawPanel(){
   var ctx=panelCtx;
   ctx.clearRect(0,0,PW,PH);
@@ -339,28 +474,24 @@ function drawPanel(){
   ctx.strokeStyle='#3a2e1a'; ctx.lineWidth=1; ctx.strokeRect(1,1,PW-2,PH-2);
   ctx.fillStyle='#c8a060'; ctx.font='bold 13px monospace';
   ctx.textAlign='left'; ctx.textBaseline='middle';
-  ctx.fillText('DREAMACHINE', 12, 22);
+  ctx.fillText('DREAMACHINE',12,22);
   ctx.fillStyle='#555'; ctx.font='10px monospace'; ctx.textAlign='right';
-  var rpm=Math.round(hz*60/10);
-  ctx.fillText(hz.toFixed(1)+' Hz · '+rpm+' RPM', PW-12, 22);
+  ctx.fillText(hz.toFixed(1)+' Hz · '+Math.round((hz/20.8)*78)+' RPM',PW-12,22);
   ctx.strokeStyle='#2a2010'; ctx.lineWidth=0.5;
   ctx.beginPath(); ctx.moveTo(12,33); ctx.lineTo(PW-12,33); ctx.stroke();
-  ctx.fillStyle='#c8a060'; ctx.font='bold 18px monospace';
+  ctx.fillStyle='#c8a060'; ctx.font='bold 16px monospace';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(hz.toFixed(1)+' Hz', 220, 145);
+  ctx.fillText(hz.toFixed(1)+' Hz',220,143);
   BTNS.forEach(function(b){
-    var active=(b.hz!==undefined&&Math.abs(hz-b.hz)<0.1);
-    ctx.fillStyle=active?'#c8a060':'#0d0b07';
-    ctx.strokeStyle=active?'#c8a060':'#2a2010';
-    ctx.lineWidth=active?1:0.5;
+    var on=(b.hz!==undefined&&Math.abs(hz-b.hz)<0.1);
+    ctx.fillStyle=on?'#c8a060':'#0d0b07';
+    ctx.strokeStyle=on?'#c8a060':'#2a2010';
+    ctx.lineWidth=on?1:0.5;
     rrP(ctx,b.x,b.y,b.w,b.h,4); ctx.fill(); ctx.stroke();
-    ctx.fillStyle=active?'#000':'#888';
+    ctx.fillStyle=on?'#000':'#888';
     ctx.font='bold 11px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(b.label,b.x+b.w/2,b.sub?b.y+b.h/2-7:b.y+b.h/2);
-    if(b.sub){
-      ctx.fillStyle=active?'#333':'#555'; ctx.font='9px monospace';
-      ctx.fillText(b.sub,b.x+b.w/2,b.y+b.h/2+8);
-    }
+    if(b.sub){ctx.fillStyle=on?'#333':'#555';ctx.font='9px monospace';ctx.fillText(b.sub+' Hz',b.x+b.w/2,b.y+b.h/2+8);}
   });
   panelTex.needsUpdate=true;
 }
@@ -373,14 +504,13 @@ function rrP(ctx,x,y,w,h,r){
   ctx.closePath();
 }
 function buildPanel(){
-  var pc=document.createElement('canvas');
-  pc.width=PW; pc.height=PH;
+  var pc=document.createElement('canvas'); pc.width=PW; pc.height=PH;
   panelCtx=pc.getContext('2d');
   panelTex=new THREE.CanvasTexture(pc);
-  var pw=0.65, ph=pw*(PH/PW);
+  var pw=0.65,ph=pw*(PH/PW);
   panel=new THREE.Mesh(new THREE.PlaneBufferGeometry(pw,ph),
     new THREE.MeshBasicMaterial({map:panelTex,transparent:true,depthTest:false}));
-  panel.position.set(0.55,1.2,-0.65);
+  panel.position.set(0.5,1.2,-0.65);
   scene.add(panel); drawPanel();
 }
 buildPanel();
@@ -397,9 +527,8 @@ function setupControllers(){
       raycaster.ray.direction.set(0,0,-1).applyMatrix4(tm);
       var hits=raycaster.intersectObject(panel);
       if(!hits.length) return;
-      var uv=hits[0].uv;
+      var uv=hits[0].uv, px=uv.x*PW, py=(1-uv.y)*PH;
       BTNS.forEach(function(b){
-        var px=uv.x*PW, py=(1-uv.y)*PH;
         if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) handleBtn(b.id);
       });
     });
@@ -423,7 +552,7 @@ renderer.setAnimationLoop(function(){
   var dt=Math.min(clock.getDelta(),0.05);
   angle+=angVel()*dt;
   if(cylGroup) cylGroup.rotation.y=angle;
-  // Bulb is CONSTANT — no code flickering
+  // Bulb is CONSTANT — no code flickering. Geometry does the work.
   if(panel){
     var xr=renderer.xr;
     panel.lookAt(xr.isPresenting?xr.getCamera(camera).position:camera.position);
@@ -431,7 +560,7 @@ renderer.setAnimationLoop(function(){
   renderer.render(scene,camera);
 });
 
-// VR — Levogyre pattern
+// VR — same pattern as Levogyre
 var vrBtn=document.getElementById('vr-btn');
 var wMsg=document.getElementById('w-msg');
 var wEnter=document.getElementById('w-enter');
