@@ -53,11 +53,9 @@ body { background:#000; overflow:hidden; font-family:'Courier New',monospace; }
 </style>
 </head>
 <body>
-
 <canvas id="canvas"></canvas>
 <div id="eyes-msg">✦ &nbsp; close your eyes and let the light find you &nbsp; ✦</div>
 <button id="vr-btn">Enter VR</button>
-
 <div id="warn">
   <div class="w-glyph">☀</div>
   <p class="w-epil">⚠ &nbsp;Photosensitive Epilepsy Warning&nbsp; ⚠</p>
@@ -66,8 +64,8 @@ body { background:#000; overflow:hidden; font-family:'Courier New',monospace; }
     <div class="w-sub">After Brion Gysin &amp; Ian Sommerville · 1961</div>
   </div>
   <div class="w-div"></div>
-  <p class="w-body">This experience produces <strong>rapid rhythmic flickering light</strong> between 1–30 Hz designed to fill your field of vision. It can trigger seizures in people with <strong>photosensitive epilepsy</strong>. Do not use if prone to seizures. Stop immediately if you feel discomfort or dizziness.</p>
-  <p class="w-note">Sit down before entering. Close your eyes — the light passes through your eyelids and the visions are your own.</p>
+  <p class="w-body">This experience produces <strong>rapid rhythmic flickering light</strong> between 1–30 Hz filling your field of vision. It can trigger seizures in people with <strong>photosensitive epilepsy</strong>. Do not use if prone to seizures. Stop immediately if you feel discomfort.</p>
+  <p class="w-note">Sit down before entering. Close your eyes — the light passes through your eyelids.</p>
   <div class="w-div"></div>
   <p id="w-msg">Loading…</p>
   <button class="w-btn" id="w-enter" onclick="document.getElementById('warn').style.display='none'" disabled>Enter the Dreamachine</button>
@@ -78,32 +76,18 @@ body { background:#000; overflow:hidden; font-family:'Courier New',monospace; }
 <script>
 (function() {
 
-// ─────────────────────────────────────────────────────────
-// SEATED USER CONFIGURATION
-//
-// Seated eye height: ~1.1m (not 1.6m standing)
-// Cylinder:  ~1m tall, 25cm radius (slightly wider than original
-//            to fill field of view from seated position)
-// Distance:  very close — 30cm from face, like in the photo.
-//            The person in the photo has their nose almost touching it.
-// Light:     slightly above eye level — bulb at top third of cylinder
-// Interior:  warm glowing inner surface visible through holes
-// ─────────────────────────────────────────────────────────
-
 var hz = 10;
 
-// Cylinder dimensions — authentic but slightly scaled for VR
-var CYL_H = 1.0;    // 1 metre tall
-var CYL_R = 0.25;   // 25cm radius — fills field of view when close
-
-// SEATED position: eye height ~1.1m, cylinder face ~30cm away
-// Cylinder centre at eye height so you look straight into it
+// ── Cylinder dimensions ────────────────────────────────
+// Authentic: ~1m tall, 19cm radius
+// Seated user: eye height ~1.1m
+// Position: close — 40cm away, centre slightly above eye level
+var CYL_H = 1.0;
+var CYL_R = 0.19;
 var CX = 0;
-var CY = 1.1;   // seated eye height
-var CZ = -0.35; // very close — 35cm from face (cylinder surface at ~10cm)
+var CY = 1.35;   // slightly above seated eye height (1.1m) so you look slightly up
+var CZ = -0.45;  // close but not so close the pattern overlaps field of view
 
-// Angular velocity: scale to target Hz
-// Original: 78 RPM with this pattern ≈ 20 Hz
 function angVel() { return (hz / 20.0) * (78/60) * Math.PI * 2; }
 
 // ── Renderer ───────────────────────────────────────────
@@ -116,95 +100,97 @@ renderer.xr.enabled = true;
 renderer.toneMapping = THREE.NoToneMapping;
 
 window.addEventListener('resize', function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 var scene  = new THREE.Scene();
-// Seated camera height
+// Seated camera eye height
 var camera = new THREE.PerspectiveCamera(80, window.innerWidth/window.innerHeight, 0.01, 20);
 camera.position.set(0, 1.1, 0);
-var clock = new THREE.Clock();
-var angle = 0;
+var clock  = new THREE.Clock();
+var angle  = 0;
 
 // ── Lighting ───────────────────────────────────────────
-// Minimal ambient — nearly black room
 scene.add(new THREE.AmbientLight(0x040302, 1));
 
-// THE BULB — constant, never flickers.
-// Strobe effect is purely geometric (cylinder wall interrupting light).
-// Bright warm incandescent, positioned 1/3 down from top.
-var bulbPos = new THREE.Vector3(CX, CY + CYL_H * 0.17, CZ);
-
+// Constant bright bulb — never flickers in code
 var bulbLight = new THREE.PointLight(0xfff5e0, 50, 5.0);
-bulbLight.position.copy(bulbPos);
+bulbLight.position.set(CX, CY + CYL_H * 0.17, CZ);
 scene.add(bulbLight);
-
-// Second fill light for lower cylinder interior
 var bulbLight2 = new THREE.PointLight(0xffe8cc, 30, 4.0);
 bulbLight2.position.set(CX, CY - CYL_H * 0.1, CZ);
 scene.add(bulbLight2);
 
 // ── Dark room ──────────────────────────────────────────
-// Barely visible walls — just enough to feel enclosed
-var wallMat = new THREE.MeshBasicMaterial({ color:0x0a0806, side:THREE.BackSide });
-var room = new THREE.Mesh(new THREE.BoxBufferGeometry(4,3,5), wallMat);
-room.position.set(0, 1.5, -1.5);
-scene.add(room);
-
-var floorMesh = new THREE.Mesh(
-  new THREE.PlaneBufferGeometry(4,5),
-  new THREE.MeshBasicMaterial({ color:0x060503 })
-);
-floorMesh.rotation.x = -Math.PI/2;
-floorMesh.position.set(0, 0, -1.5);
-scene.add(floorMesh);
+var room = new THREE.Mesh(new THREE.BoxBufferGeometry(4,3,5),
+  new THREE.MeshBasicMaterial({color:0x0a0806, side:THREE.BackSide}));
+room.position.set(0,1.5,-1.5); scene.add(room);
+var flr = new THREE.Mesh(new THREE.PlaneBufferGeometry(4,5),
+  new THREE.MeshBasicMaterial({color:0x060503}));
+flr.rotation.x = -Math.PI/2; flr.position.set(0,0,-1.5); scene.add(flr);
 
 // ─────────────────────────────────────────────────────────
 // PATTERN TEXTURE
 //
-// Looking at the real Dreamachine photo (image 3):
-//   - Holes are WIDE, short-to-medium rounded rectangles
-//   - They look like fat rounded oblongs, wider than tall
-//   - Arranged in a staggered brick pattern
-//   - About 4-5 columns across the cylinder circumference
-//   - Roughly 3 rows vertically
-//   - The cylinder wall between holes is quite narrow
-//   - The overall effect is more hole than wall
+// The key issues previously:
+//   1. The texture coordinates were from the full SVG which is much
+//      wider than tall — scaling to a square texture made holes huge.
+//   2. The SVG is 3019 wide × 2053 tall, but the USABLE pattern area
+//      (where the shapes actually are) is only the middle portion.
 //
-// The SVG template has large stadiums (pill shapes) that are
-// TALLER than wide — but in the photo they look wider than tall.
-// This is because the photo shows the cylinder from an angle
-// and the shapes ARE tall stadiums that appear foreshortened.
+// Better approach: define the pattern mathematically based on what
+// we know from the SVG analysis:
+//   - 12 large stadiums per row, arranged in 6 pairs
+//   - Each pair has two stadiums ~107px apart (SVG space)
+//   - Pairs are ~373px apart
+//   - Stadium: width=266.89px, total height=533.77px (body=266.89, r=133.44)
+//   - Two main rows vertically in the middle of the sheet
+//   - Small connector stadiums between rows
 //
-// From the SVG: shape width = 266.89px, total height = 533.77px
-// So they ARE taller than wide (2:1 ratio) — correct stadiums.
+// The sheet wraps into a cylinder: horizontal = circumference = 2πr
+// Vertical = cylinder height
 //
-// For alphaMap in Three.js:
-//   WHITE pixel = mesh is VISIBLE (solid wall)
-//   BLACK pixel = mesh is TRANSPARENT (hole, light passes)
+// Let's compute the correct proportions:
+//   Cylinder circumference = 2π × 0.19 = 1.194m
+//   Pattern sheet length   = ~34 inches = 0.864m (from plans)
+//   This wraps with ~72 degrees overlap — close enough to treat as full wrap
+//
+//   Pattern height = 36 inches = 0.914m ≈ cylinder height
+//
+// Stadium width in real space = (266.89 / 3019.84) × 34" = 2.998" ≈ 3 inches
+// Stadium total height = (533.77 / 2053.89) × 36" = 9.35 inches
+//
+// In texture (normalised 0-1):
+//   Stadium width  = 266.89 / 3019.84 = 0.0884 of texture width
+//   Stadium height = 533.77 / 2053.89 = 0.2599 of texture height
+//
+// This is correct — each hole is ~8.8% of circumference wide
+// and ~26% of cylinder height tall. That seems right from the photo.
+// The issue was likely the inner white cylinder overwhelming everything.
 // ─────────────────────────────────────────────────────────
 
 function makeWallTexture() {
+  // Texture: x = circumference (0 to 1), y = height (0 to 1)
   var sz = 2048;
   var cv = document.createElement('canvas');
   cv.width = sz; cv.height = sz;
   var ctx = cv.getContext('2d');
 
-  // White = wall (opaque)
+  // WHITE = solid wall (alphaMap: white = opaque mesh)
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, sz, sz);
 
-  // Black = holes (transparent)
+  // BLACK = hole (alphaMap: black = transparent = light passes through)
   ctx.fillStyle = '#000000';
 
-  // SVG canvas dimensions
+  // Normalised shape positions (from SVG coordinate analysis)
+  // SVG canvas: 3019.84 wide × 2053.89 tall
   var SW = 3019.84, SH = 2053.89;
-  var scx = sz / SW, scy = sz / SH;
+  var sx = sz / SW, sy = sz / SH;
 
-  // Large stadium shapes from SVG (x=left edge, y=top of top cap, in SVG px)
-  // r=133.44 (radius), body=266.89 (rectangular middle height)
+  // Large stadiums: r=133.44px, body=266.89px
   var LR = 133.44, LB = 266.89;
   var large = [
     [123.7,721.3],[497.0,721.3],[603.5,721.3],[976.9,721.3],
@@ -214,11 +200,9 @@ function makeWallTexture() {
     [1083.3,1309.6],[1456.7,1309.6],[1563.2,1309.6],[1936.5,1309.6],
     [2043.0,1309.6],[2416.3,1309.6],[2522.8,1309.6],[2896.2,1309.6],
   ];
-  large.forEach(function(s) {
-    pill(ctx, s[0]*scx, s[1]*scy, LR*scx, LB*scy);
-  });
+  large.forEach(function(s){ pill(ctx,s[0]*sx,s[1]*sy,LR*sx,LB*sy); });
 
-  // Small connector stadiums (r=66.72)
+  // Small stadiums: r=66.72px, body=266.89px
   var SR = 66.72, SB = 266.89;
   var small = [
     [70.5,815.3],[243.6,948.7],[723.5,948.7],
@@ -226,20 +210,59 @@ function makeWallTexture() {
     [70.5,1215.6],[550.3,1215.6],[1030.1,1215.6],[1509.9,1215.6],
     [1989.8,1215.6],[2469.6,1215.6],[2949.4,1215.6],
   ];
-  small.forEach(function(s) {
-    pill(ctx, s[0]*scx, s[1]*scy, SR*scx, SB*scy);
-  });
+  small.forEach(function(s){ pill(ctx,s[0]*sx,s[1]*sy,SR*sx,SB*sy); });
 
   return new THREE.CanvasTexture(cv);
 }
 
-// Pill/stadium shape: x,y = top-left of bounding box, r = cap radius, body = middle height
+// alphaMap for inner warm surface:
+// INVERTED — black where wall is (so inner surface shows warm colour there)
+// white where holes are (inner surface invisible through holes — you see through)
+function makeInnerTexture() {
+  var sz = 2048;
+  var cv = document.createElement('canvas');
+  cv.width = sz; cv.height = sz;
+  var ctx = cv.getContext('2d');
+
+  // BLACK = wall areas (inner surface rendered warm here)
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, sz, sz);
+
+  // WHITE = hole areas (inner surface NOT rendered — transparent)
+  ctx.fillStyle = '#ffffff';
+
+  var SW = 3019.84, SH = 2053.89;
+  var sx = sz/SW, sy = sz/SH;
+
+  var LR=133.44, LB=266.89;
+  var large=[
+    [123.7,721.3],[497.0,721.3],[603.5,721.3],[976.9,721.3],
+    [1083.3,721.3],[1456.7,721.3],[1563.2,721.3],[1936.5,721.3],
+    [2043.0,721.3],[2416.3,721.3],[2522.8,721.3],[2896.2,721.3],
+    [123.7,1309.6],[497.0,1309.6],[603.5,1309.6],[976.9,1309.6],
+    [1083.3,1309.6],[1456.7,1309.6],[1563.2,1309.6],[1936.5,1309.6],
+    [2043.0,1309.6],[2416.3,1309.6],[2522.8,1309.6],[2896.2,1309.6],
+  ];
+  large.forEach(function(s){ pill(ctx,s[0]*sx,s[1]*sy,LR*sx,LB*sy); });
+
+  var SR=66.72, SB=266.89;
+  var small=[
+    [70.5,815.3],[243.6,948.7],[723.5,948.7],
+    [1203.3,948.7],[1683.1,948.7],[2162.9,948.7],[2642.8,948.7],[2949.4,815.3],
+    [70.5,1215.6],[550.3,1215.6],[1030.1,1215.6],[1509.9,1215.6],
+    [1989.8,1215.6],[2469.6,1215.6],[2949.4,1215.6],
+  ];
+  small.forEach(function(s){ pill(ctx,s[0]*sx,s[1]*sy,SR*sx,SB*sy); });
+
+  return new THREE.CanvasTexture(cv);
+}
+
 function pill(ctx, x, y, r, body) {
   var cx = x + r;
   ctx.beginPath();
-  ctx.arc(cx, y + r,        r, Math.PI, 0);
-  ctx.lineTo(cx + r, y + r + body);
-  ctx.arc(cx, y + r + body, r, 0, Math.PI);
+  ctx.arc(cx, y+r,       r, Math.PI, 0);
+  ctx.lineTo(cx+r, y+r+body);
+  ctx.arc(cx, y+r+body,  r, 0, Math.PI);
   ctx.closePath();
   ctx.fill();
 }
@@ -250,101 +273,88 @@ var cylGroup;
 function buildCylinder() {
   if (cylGroup) {
     scene.remove(cylGroup);
-    cylGroup.traverse(function(o) {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        if (o.material.map) o.material.map.dispose();
-        o.material.dispose();
-      }
+    cylGroup.traverse(function(o){
+      if(o.geometry) o.geometry.dispose();
+      if(o.material){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); }
     });
   }
 
   cylGroup = new THREE.Group();
   cylGroup.position.set(CX, CY, CZ);
 
-  var wallTex = makeWallTexture();
+  var wallTex  = makeWallTexture();
+  var innerTex = makeInnerTexture();
 
-  // ── Outer cylinder wall (the card with holes) ─────────
-  // Seen from outside: dark card with glowing holes
-  var outerMat = new THREE.MeshBasicMaterial({
-    color:       0x1e1508,   // dark warm brown — cardboard
-    alphaMap:    wallTex,
-    alphaTest:   0.5,
-    side:        THREE.FrontSide,  // only visible from outside
-    transparent: true,
-  });
-  var outerCyl = new THREE.Mesh(
+  // ── Outer wall — dark card with holes ─────────────────
+  // Seen from outside. Only FrontSide so inside doesn't show this layer.
+  cylGroup.add(new THREE.Mesh(
     new THREE.CylinderBufferGeometry(CYL_R, CYL_R, CYL_H, 128, 1, true),
-    outerMat
-  );
-  cylGroup.add(outerCyl);
+    new THREE.MeshBasicMaterial({
+      color:       0x1e1508,
+      alphaMap:    wallTex,
+      alphaTest:   0.5,
+      side:        THREE.FrontSide,
+      transparent: true,
+    })
+  ));
 
-  // ── Inner cylinder wall (lit from inside) ─────────────
-  // The interior surface of the cardboard glows warm from the bulb.
-  // This is what you see through the holes — warm glowing paper.
-  // It uses the INVERTED texture (wall areas shown on inner surface)
-  // but since it's BackSide, it naturally shows the interior.
-  var innerMat = new THREE.MeshStandardMaterial({
-    color:     0xffe8c0,   // warm cream paper colour
-    emissive:  0x331a00,   // slight self-illumination
-    roughness: 0.9,
-    metalness: 0.0,
-    side:      THREE.BackSide,  // inner surface
-  });
-  var innerCyl = new THREE.Mesh(
-    new THREE.CylinderBufferGeometry(CYL_R * 0.99, CYL_R * 0.99, CYL_H, 128, 1, true),
-    innerMat
-  );
-  cylGroup.add(innerCyl);
+  // ── Inner wall — warm glowing paper/card ──────────────
+  // Seen from inside looking outward. The wall areas (between holes)
+  // glow warm cream from the bulb light. The hole areas are transparent
+  // so the viewer sees through to the dark room beyond.
+  // Uses inverted texture: wall areas = visible, hole areas = transparent.
+  cylGroup.add(new THREE.Mesh(
+    new THREE.CylinderBufferGeometry(CYL_R * 0.995, CYL_R * 0.995, CYL_H, 128, 1, true),
+    new THREE.MeshStandardMaterial({
+      color:       0xfff0d0,  // warm cream paper
+      emissive:    new THREE.Color(0x1a0e00),
+      roughness:   0.85,
+      metalness:   0.0,
+      alphaMap:    innerTex,
+      alphaTest:   0.5,
+      side:        THREE.BackSide,
+      transparent: true,
+    })
+  ));
 
-  // Solid caps (top and bottom close the cylinder)
-  var capMat = new THREE.MeshBasicMaterial({ color:0x0e0a04 });
-  var top = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R, 64), capMat);
-  top.rotation.x = -Math.PI/2;
-  top.position.y = CYL_H/2 + 0.001;
+  // ── Solid caps ─────────────────────────────────────────
+  var capMat = new THREE.MeshBasicMaterial({color:0x0e0a04});
+  var top = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R,64), capMat);
+  top.rotation.x = -Math.PI/2; top.position.y = CYL_H/2 + 0.001;
   cylGroup.add(top);
-
-  var bot = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R, 64), capMat.clone());
-  bot.rotation.x = Math.PI/2;
-  bot.position.y = -CYL_H/2 - 0.001;
+  var bot = new THREE.Mesh(new THREE.CircleBufferGeometry(CYL_R,64), capMat.clone());
+  bot.rotation.x = Math.PI/2; bot.position.y = -CYL_H/2 - 0.001;
   cylGroup.add(bot);
 
-  // ── The bulb ─────────────────────────────────────────
-  // Tiny white sphere — seen blazing through the holes as they pass
+  // ── Bulb — white hot point ─────────────────────────────
   var bulbMesh = new THREE.Mesh(
-    new THREE.SphereBufferGeometry(0.018, 16, 16),
-    new THREE.MeshBasicMaterial({ color:0xffffff })
+    new THREE.SphereBufferGeometry(0.016,16,16),
+    new THREE.MeshBasicMaterial({color:0xffffff})
   );
   bulbMesh.position.y = CYL_H * 0.17;
   cylGroup.add(bulbMesh);
 
-  // Glow halos — the bloom of light around the bulb
-  // These are visible through the holes and give the warm interior glow
-  [[0.04, 0xffffff, 1.0],
-   [0.08, 0xfff5e0, 0.9],
-   [0.14, 0xffeecc, 0.7],
-   [0.22, 0xffddaa, 0.4]].forEach(function(g) {
-    var m = new THREE.Mesh(
-      new THREE.SphereBufferGeometry(g[0], 16, 16),
-      new THREE.MeshBasicMaterial({ color:g[1], transparent:true, opacity:g[2], side:THREE.BackSide })
-    );
-    m.position.y = CYL_H * 0.17;
-    cylGroup.add(m);
-  });
+  // Glow layers — bloom of light visible through holes
+  [[0.035,0xffffff,1.0],[0.07,0xfff8e8,0.85],[0.12,0xffeecc,0.6],[0.18,0xffe8aa,0.35]]
+    .forEach(function(g){
+      var m = new THREE.Mesh(new THREE.SphereBufferGeometry(g[0],16,16),
+        new THREE.MeshBasicMaterial({color:g[1],transparent:true,opacity:g[2],side:THREE.BackSide}));
+      m.position.y = CYL_H*0.17; cylGroup.add(m);
+    });
 
-  // Axle rod (thin, barely visible)
+  // Axle
   var axle = new THREE.Mesh(
-    new THREE.CylinderBufferGeometry(0.004, 0.004, CYL_H + 0.05, 8),
-    new THREE.MeshBasicMaterial({ color:0x222010 })
+    new THREE.CylinderBufferGeometry(0.004,0.004,CYL_H+0.05,8),
+    new THREE.MeshBasicMaterial({color:0x1a1408})
   );
   cylGroup.add(axle);
 
-  // Suspension wire from top cap to bulb
+  // Wire
   var wire = new THREE.Mesh(
-    new THREE.CylinderBufferGeometry(0.0015, 0.0015, CYL_H * 0.33, 4),
-    new THREE.MeshBasicMaterial({ color:0x181408 })
+    new THREE.CylinderBufferGeometry(0.0015,0.0015,CYL_H*0.33,4),
+    new THREE.MeshBasicMaterial({color:0x141008})
   );
-  wire.position.y = CYL_H/2 - (CYL_H * 0.33) / 2;
+  wire.position.y = CYL_H/2 - CYL_H*0.33/2;
   cylGroup.add(wire);
 
   scene.add(cylGroup);
@@ -353,7 +363,8 @@ function buildCylinder() {
 buildCylinder();
 
 // ── In-VR control panel ────────────────────────────────
-// Positioned to the right at seated height — easy to reach without moving
+// Positioned clearly to the RIGHT and BEHIND the cylinder plane
+// so it never clips through the machine
 var panel, panelCtx, panelTex;
 var PW=512, PH=220;
 var BTNS=[
@@ -365,162 +376,147 @@ var BTNS=[
   {id:'hzup',  label:'+',    x:80, y:122,w:60,h:42},
 ];
 
-function drawPanel() {
-  var ctx = panelCtx;
+function drawPanel(){
+  var ctx=panelCtx;
   ctx.clearRect(0,0,PW,PH);
-  ctx.fillStyle = 'rgba(4,3,2,0.96)'; ctx.fillRect(0,0,PW,PH);
-  ctx.strokeStyle = '#3a2e1a'; ctx.lineWidth = 1; ctx.strokeRect(1,1,PW-2,PH-2);
-  ctx.fillStyle = '#c8a060'; ctx.font = 'bold 13px monospace';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('DREAMACHINE', 12, 22);
-  ctx.fillStyle = '#555'; ctx.font = '10px monospace'; ctx.textAlign = 'right';
-  ctx.fillText(hz.toFixed(1)+' Hz', PW-12, 22);
-  ctx.strokeStyle = '#2a2010'; ctx.lineWidth = 0.5;
+  ctx.fillStyle='rgba(4,3,2,0.96)'; ctx.fillRect(0,0,PW,PH);
+  ctx.strokeStyle='#3a2e1a'; ctx.lineWidth=1; ctx.strokeRect(1,1,PW-2,PH-2);
+  ctx.fillStyle='#c8a060'; ctx.font='bold 13px monospace';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('DREAMACHINE',12,22);
+  ctx.fillStyle='#555'; ctx.font='10px monospace'; ctx.textAlign='right';
+  ctx.fillText(hz.toFixed(1)+' Hz',PW-12,22);
+  ctx.strokeStyle='#2a2010'; ctx.lineWidth=0.5;
   ctx.beginPath(); ctx.moveTo(12,33); ctx.lineTo(PW-12,33); ctx.stroke();
-  ctx.fillStyle = '#c8a060'; ctx.font = 'bold 16px monospace';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(hz.toFixed(1)+' Hz', 220, 143);
-  BTNS.forEach(function(b) {
-    var on = b.hz !== undefined && Math.abs(hz - b.hz) < 0.1;
-    ctx.fillStyle   = on ? '#c8a060' : '#0d0b07';
-    ctx.strokeStyle = on ? '#c8a060' : '#2a2010';
-    ctx.lineWidth   = on ? 1 : 0.5;
+  ctx.fillStyle='#c8a060'; ctx.font='bold 16px monospace';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(hz.toFixed(1)+' Hz',220,143);
+  BTNS.forEach(function(b){
+    var on=(b.hz!==undefined&&Math.abs(hz-b.hz)<0.1);
+    ctx.fillStyle=on?'#c8a060':'#0d0b07';
+    ctx.strokeStyle=on?'#c8a060':'#2a2010';
+    ctx.lineWidth=on?1:0.5;
     rrP(ctx,b.x,b.y,b.w,b.h,4); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = on ? '#000' : '#888';
-    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(b.label, b.x+b.w/2, b.sub ? b.y+b.h/2-7 : b.y+b.h/2);
-    if (b.sub) {
-      ctx.fillStyle = on ? '#333' : '#555'; ctx.font = '9px monospace';
-      ctx.fillText(b.sub, b.x+b.w/2, b.y+b.h/2+8);
+    ctx.fillStyle=on?'#000':'#888';
+    ctx.font='bold 11px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(b.label,b.x+b.w/2,b.sub?b.y+b.h/2-7:b.y+b.h/2);
+    if(b.sub){
+      ctx.fillStyle=on?'#333':'#555'; ctx.font='9px monospace';
+      ctx.fillText(b.sub,b.x+b.w/2,b.y+b.h/2+8);
     }
   });
-  panelTex.needsUpdate = true;
+  panelTex.needsUpdate=true;
 }
 
-function rrP(ctx,x,y,w,h,r) {
+function rrP(ctx,x,y,w,h,r){
   ctx.beginPath();
-  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
   ctx.closePath();
 }
 
-function buildPanel() {
-  var pc = document.createElement('canvas');
-  pc.width = PW; pc.height = PH;
-  panelCtx = pc.getContext('2d');
-  panelTex = new THREE.CanvasTexture(pc);
-  var pw = 0.6, ph = pw*(PH/PW);
-  panel = new THREE.Mesh(
-    new THREE.PlaneBufferGeometry(pw, ph),
-    new THREE.MeshBasicMaterial({ map:panelTex, transparent:true, depthTest:false })
+function buildPanel(){
+  var pc=document.createElement('canvas');
+  pc.width=PW; pc.height=PH;
+  panelCtx=pc.getContext('2d');
+  panelTex=new THREE.CanvasTexture(pc);
+  var pw=0.6, ph=pw*(PH/PW);
+  panel=new THREE.Mesh(
+    new THREE.PlaneBufferGeometry(pw,ph),
+    new THREE.MeshBasicMaterial({map:panelTex,transparent:true,depthTest:false})
   );
-  // To the right of the cylinder, at arm level for a seated user
-  panel.position.set(0.6, 0.85, -0.4);
-  scene.add(panel);
-  drawPanel();
+  // Place panel well to the right and behind cylinder so it never intersects
+  // CZ is -0.45, so putting panel at z=0.3 means it's clearly behind user's right side
+  panel.position.set(0.85, 0.9, 0.2);
+  scene.add(panel); drawPanel();
 }
 buildPanel();
 
-// ── Controllers ────────────────────────────────────────
-var raycaster = new THREE.Raycaster();
-function setupControllers() {
-  [0,1].forEach(function(i) {
-    var c = renderer.xr.getController(i);
-    c.addEventListener('selectstart', function() {
-      var tm = new THREE.Matrix4();
+// Controllers
+var raycaster=new THREE.Raycaster();
+function setupControllers(){
+  [0,1].forEach(function(i){
+    var c=renderer.xr.getController(i);
+    c.addEventListener('selectstart',function(){
+      var tm=new THREE.Matrix4();
       tm.identity().extractRotation(c.matrixWorld);
       raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);
       raycaster.ray.direction.set(0,0,-1).applyMatrix4(tm);
-      var hits = raycaster.intersectObject(panel);
-      if (!hits.length) return;
-      var uv = hits[0].uv;
-      var px = uv.x*PW, py = (1-uv.y)*PH;
-      BTNS.forEach(function(b) {
-        if (px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) handleBtn(b.id);
+      var hits=raycaster.intersectObject(panel);
+      if(!hits.length) return;
+      var uv=hits[0].uv, px=uv.x*PW, py=(1-uv.y)*PH;
+      BTNS.forEach(function(b){
+        if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h) handleBtn(b.id);
       });
     });
-    var ray = new THREE.Mesh(
+    var ray=new THREE.Mesh(
       new THREE.CylinderBufferGeometry(0.002,0.001,3,6),
       new THREE.MeshBasicMaterial({color:0xc8a060,transparent:true,opacity:0.3})
     );
-    ray.rotation.x = -Math.PI/2; ray.position.z = -1.5;
+    ray.rotation.x=-Math.PI/2; ray.position.z=-1.5;
     c.add(ray); scene.add(c);
   });
 }
 
-function handleBtn(id) {
-  if     (id==='delta')  hz=2;
-  else if(id==='theta')  hz=6;
-  else if(id==='alpha')  hz=10;
-  else if(id==='beta')   hz=20;
-  else if(id==='hzdown') hz=Math.max(1,  Math.round((hz-0.5)*10)/10);
-  else if(id==='hzup')   hz=Math.min(30, Math.round((hz+0.5)*10)/10);
+function handleBtn(id){
+  if(id==='delta') hz=2; else if(id==='theta') hz=6;
+  else if(id==='alpha') hz=10; else if(id==='beta') hz=20;
+  else if(id==='hzdown') hz=Math.max(1,Math.round((hz-0.5)*10)/10);
+  else if(id==='hzup')   hz=Math.min(30,Math.round((hz+0.5)*10)/10);
   drawPanel();
 }
 
-// ── Render loop ────────────────────────────────────────
-renderer.setAnimationLoop(function() {
-  var dt = Math.min(clock.getDelta(), 0.05);
-  angle += angVel() * dt;
-  if (cylGroup) cylGroup.rotation.y = angle;
-
-  // Bulb light is CONSTANT — never changes intensity.
-  // The spinning cylinder wall creates the strobe physically.
-
-  // Panel always faces the viewer
-  if (panel) {
-    var xr = renderer.xr;
-    panel.lookAt(xr.isPresenting ? xr.getCamera(camera).position : camera.position);
+// Render loop
+renderer.setAnimationLoop(function(){
+  var dt=Math.min(clock.getDelta(),0.05);
+  angle+=angVel()*dt;
+  if(cylGroup) cylGroup.rotation.y=angle;
+  // Panel faces viewer — always readable
+  if(panel){
+    var xr=renderer.xr;
+    panel.lookAt(xr.isPresenting?xr.getCamera(camera).position:camera.position);
   }
-
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 });
 
-// ── VR — Levogyre pattern ──────────────────────────────
-var vrBtn   = document.getElementById('vr-btn');
-var wMsg    = document.getElementById('w-msg');
-var wEnter  = document.getElementById('w-enter');
-var eyesMsg = document.getElementById('eyes-msg');
-
-if ('xr' in navigator) {
-  navigator.xr.isSessionSupported('immersive-vr').then(function(supported) {
-    if (supported) {
-      wMsg.textContent = '✦ VR headset detected — sit down first';
-      wMsg.style.color = '#88cc88';
-      wEnter.disabled  = false;
-      vrBtn.style.display = 'block';
-      vrBtn.addEventListener('click', function() {
-        if (renderer.xr.isPresenting) {
-          renderer.xr.getSession().end();
-        } else {
-          navigator.xr.requestSession('immersive-vr', {
+// VR
+var vrBtn=document.getElementById('vr-btn');
+var wMsg=document.getElementById('w-msg');
+var wEnter=document.getElementById('w-enter');
+var eyesMsg=document.getElementById('eyes-msg');
+if('xr' in navigator){
+  navigator.xr.isSessionSupported('immersive-vr').then(function(supported){
+    if(supported){
+      wMsg.textContent='✦ VR headset detected — sit down first';
+      wMsg.style.color='#88cc88';
+      wEnter.disabled=false; vrBtn.style.display='block';
+      vrBtn.addEventListener('click',function(){
+        if(renderer.xr.isPresenting){ renderer.xr.getSession().end(); }
+        else {
+          navigator.xr.requestSession('immersive-vr',{
             optionalFeatures:['local-floor','bounded-floor','hand-tracking']
-          }).then(function(session) {
+          }).then(function(session){
             renderer.xr.setSession(session);
             setupControllers();
-            vrBtn.textContent = 'Exit VR';
-            vrBtn.classList.add('active');
-            eyesMsg.style.display = 'block';
-            session.addEventListener('end', function() {
-              vrBtn.textContent = 'Enter VR';
-              vrBtn.classList.remove('active');
-              eyesMsg.style.display = 'none';
+            vrBtn.textContent='Exit VR'; vrBtn.classList.add('active');
+            eyesMsg.style.display='block';
+            session.addEventListener('end',function(){
+              vrBtn.textContent='Enter VR'; vrBtn.classList.remove('active');
+              eyesMsg.style.display='none';
             });
           });
         }
       });
     } else {
-      wMsg.textContent = 'VR not supported in this browser';
-      wMsg.style.color = '#c84444';
-      wEnter.disabled  = false;
+      wMsg.textContent='VR not supported'; wMsg.style.color='#c84444';
+      wEnter.disabled=false;
     }
   });
 } else {
-  wMsg.textContent = 'WebXR unavailable — use Meta Browser on Quest';
-  wMsg.style.color = '#c84444';
-  wEnter.disabled  = false;
+  wMsg.textContent='WebXR unavailable — use Meta Browser on Quest';
+  wMsg.style.color='#c84444'; wEnter.disabled=false;
 }
 
 })();
